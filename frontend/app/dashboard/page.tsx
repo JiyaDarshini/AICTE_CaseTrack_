@@ -38,9 +38,17 @@ export default function DashboardPage() {
   const [trends, setTrends] = useState<{ month: string; received: number; disposed: number }[]>([]);
   const [topInstitutions, setTopInstitutions] = useState<TopInstitution[]>([]);
   const [topOverlaps, setTopOverlaps] = useState<OverlapGroup[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const savedUser = localStorage.getItem("casetrack_user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (_) {}
+    }
+
     async function loadDashboard() {
       try {
         const [sum, wl, age, tr, topInst, ov] = await Promise.all([
@@ -73,8 +81,8 @@ export default function DashboardPage() {
         <TopNav />
 
         <main className="p-6 space-y-6 overflow-y-auto">
-          {/* Header Title & Date */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#FED7AA] gap-2">
+          {/* Header Title & Date & Persona */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#FED7AA] gap-3">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-[#C2410C]">
                 Integrated Monitoring & Status Overview
@@ -83,19 +91,43 @@ export default function DashboardPage() {
                 Regulatory Executive Dashboard
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/cases"
-                className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] transition-colors"
-              >
-                + Register New Case
-              </Link>
-              <Link
-                href="/reports"
-                className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] hover:bg-[#FFEDD5] transition-colors"
-              >
-                Export Reports
-              </Link>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Logged in Persona Card at top right of dashboard */}
+              {user && (
+                <div className="px-3.5 py-1.5 bg-[#FFF7ED] rounded-[8px] border border-[#FED7AA] shadow-sm flex items-center gap-2.5">
+                  <div>
+                    <div className="text-xs font-bold text-[#1F2937] leading-tight">
+                      {user.name}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#C2410C] text-white">
+                        {user.role}
+                      </span>
+                      {user.region && (
+                        <span className="text-[10px] text-[#6B7280]">
+                          • {user.region} Region
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/cases"
+                  className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] transition-colors"
+                >
+                  + Register New Case
+                </Link>
+                <Link
+                  href="/reports"
+                  className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] hover:bg-[#FFEDD5] transition-colors"
+                >
+                  Export Reports
+                </Link>
+              </div>
             </div>
           </div>
 

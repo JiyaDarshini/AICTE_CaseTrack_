@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Bell, Check, Clock, AlertCircle } from "lucide-react";
+import { Search, Bell, Clock, AlertCircle, LogOut, LogIn, UserPlus } from "lucide-react";
 import { apiRequest } from "@/lib/api";
-import { Notification } from "@/lib/types";
+import { Notification, User } from "@/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +13,7 @@ export const TopNav: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [user, setUser] = useState<User | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -23,6 +24,13 @@ export const TopNav: React.FC = () => {
   };
 
   useEffect(() => {
+    const savedUser = localStorage.getItem("casetrack_user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (_) {}
+    }
+
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000); // 30s poll
     return () => clearInterval(interval);
@@ -34,6 +42,12 @@ export const TopNav: React.FC = () => {
     router.push(`/cases?case_number=${encodeURIComponent(searchTerm.trim())}`);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("casetrack_token");
+    localStorage.removeItem("casetrack_user");
+    window.location.href = "/login";
+  };
+
   const markAllRead = async () => {
     try {
       await apiRequest("/notifications/read-all", { method: "POST" });
@@ -43,9 +57,9 @@ export const TopNav: React.FC = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-[#FED7AA] px-6 flex items-center justify-between sticky top-0 z-20">
+    <header className="h-16 bg-white border-b border-[#FED7AA] px-6 flex items-center justify-between sticky top-0 z-20 gap-4">
       {/* Global Search Bar */}
-      <form onSubmit={handleSearch} className="relative w-96">
+      <form onSubmit={handleSearch} className="relative w-80 lg:w-96">
         <label htmlFor="global-search" className="sr-only">
           Search cases by ID or institution
         </label>
@@ -55,16 +69,17 @@ export const TopNav: React.FC = () => {
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by Case No., AICTE Permanent ID, or Institution..."
+          placeholder="Search by Case No., Permanent ID, or Institution..."
           className="w-full pl-9 pr-4 py-1.5 text-xs bg-[#FFF7ED] border border-[#FED7AA] rounded-[6px] text-[#1F2937] placeholder-[#6B7280] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
         />
       </form>
 
-      {/* Right Icons: Clock & Notification Bell */}
-      <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#6B7280]">
+      {/* Right Section: Clock, Bell, Logged-in Persona & Auth Actions */}
+      <div className="flex items-center gap-3">
+        {/* Clock */}
+        <div className="hidden xl:flex items-center gap-1.5 text-xs text-[#6B7280]">
           <Clock className="w-3.5 h-3.5 text-[#C2410C]" />
-          <span>New Delhi, India (IST)</span>
+          <span>New Delhi (IST)</span>
         </div>
 
         {/* Notifications Dropdown */}
@@ -138,6 +153,58 @@ export const TopNav: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Vertical divider */}
+        <div className="h-6 w-[1px] bg-[#FED7AA]" />
+
+        {/* User Persona & Login / Register / Sign Out Option */}
+        {user ? (
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Person Card (matches sidebar card design in user screenshot) */}
+            <div className="px-3 py-1.5 bg-[#FFF7ED] rounded-[8px] border border-[#FED7AA] shadow-sm flex flex-col justify-center">
+              <span className="text-xs font-bold text-[#1F2937] leading-tight truncate max-w-[130px] sm:max-w-[180px]">
+                {user.name}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#C2410C] text-white leading-none">
+                  {user.role}
+                </span>
+                {user.region && (
+                  <span className="text-[10px] text-[#6B7280] hidden md:inline">
+                    • {user.region}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Sign Out Button */}
+            <button
+              onClick={handleLogout}
+              title="Sign Out of CaseTrack"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#C2410C] bg-[#FFF7ED] hover:bg-[#FFEDD5] border border-[#FED7AA] rounded-[6px] transition-colors shadow-sm"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] shadow-sm transition-colors"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Sign In
+            </Link>
+            <Link
+              href="/register"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] hover:bg-[#FFEDD5] transition-colors"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Register</span>
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );
