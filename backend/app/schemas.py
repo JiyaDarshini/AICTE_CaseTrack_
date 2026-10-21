@@ -99,6 +99,15 @@ class InstitutionDetailResponse(InstitutionResponse):
     cases: List[Dict[str, Any]] = []
 
 
+class InstitutionImportResponse(BaseModel):
+    accepted: int
+    rejected: int
+    total: int
+    created: int
+    updated: int
+    errors: List[Dict[str, Any]] = []
+
+
 # ==================== CASE SCHEMAS ====================
 class CaseCreate(BaseModel):
     case_number: Optional[str] = None
