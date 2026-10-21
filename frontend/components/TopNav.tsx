@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Bell, Clock, AlertCircle, LogOut, LogIn, UserPlus } from "lucide-react";
+import { Search, Bell, Clock, AlertCircle, LogIn, UserPlus } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { Notification, User } from "@/lib/types";
 import Link from "next/link";
@@ -42,11 +42,6 @@ export const TopNav: React.FC = () => {
     router.push(`/cases?case_number=${encodeURIComponent(searchTerm.trim())}`);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("casetrack_token");
-    localStorage.removeItem("casetrack_user");
-    window.location.href = "/login";
-  };
 
   const markAllRead = async () => {
     try {
@@ -159,7 +154,7 @@ export const TopNav: React.FC = () => {
 
         {/* User Persona & Login / Register / Sign Out Option */}
         {user ? (
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center">
             {/* Person Card (matches sidebar card design in user screenshot) */}
             <div className="px-3 py-1.5 bg-[#FFF7ED] rounded-[8px] border border-[#FED7AA] shadow-sm flex flex-col justify-center">
               <span className="text-xs font-bold text-[#1F2937] leading-tight truncate max-w-[130px] sm:max-w-[180px]">
@@ -176,16 +171,6 @@ export const TopNav: React.FC = () => {
                 )}
               </div>
             </div>
-
-            {/* Sign Out Button */}
-            <button
-              onClick={handleLogout}
-              title="Sign Out of CaseTrack"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#C2410C] bg-[#FFF7ED] hover:bg-[#FFEDD5] border border-[#FED7AA] rounded-[6px] transition-colors shadow-sm"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
