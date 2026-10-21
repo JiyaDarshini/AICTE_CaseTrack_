@@ -74,25 +74,8 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* User Card */}
-        {user && (
-          <div className="p-3 mx-3 my-3 bg-[#FFF7ED] rounded-[8px] border border-[#FED7AA]">
-            <div className="text-xs font-bold text-[#1F2937] truncate">{user.name}</div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#C2410C] text-white">
-                {user.role}
-              </span>
-              {user.region && (
-                <span className="text-[10px] text-[#6B7280]">
-                  {user.region} Region
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Navigation Items */}
-        <nav className="px-2 space-y-1">
+        <nav className="px-2 pt-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
