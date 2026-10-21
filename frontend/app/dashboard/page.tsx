@@ -134,7 +134,6 @@ export default function DashboardPage() {
             title="Regulatory Executive Dashboard"
             description="Integrated complaint monitoring, overlap detection, and SLA compliance status across AICTE bureaus."
             actions={[
-              { label: "+ Register Case", href: "/cases" },
               { label: "Export Reports", href: "/reports", variant: "secondary" },
             ]}
           />
