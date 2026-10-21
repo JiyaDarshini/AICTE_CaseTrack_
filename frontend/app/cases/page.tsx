@@ -3,14 +3,15 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { TopNav } from "@/components/TopNav";
+import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/KpiCard";
+import { FilterBar, FilterItem } from "@/components/FilterBar";
+import { DataTable, Column } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Drawer } from "@/components/Drawer";
 import { apiRequest } from "@/lib/api";
 import { Case } from "@/lib/types";
-import {
-  Search, Filter, Plus, ChevronLeft, ChevronRight,
-  RotateCcw, Building, FileText, CheckCircle2, AlertTriangle, Eye
-} from "lucide-react";
+import { Plus, X, Eye, FolderOpen, Clock, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -41,7 +42,7 @@ function CasesContent() {
     description: "",
     complainant_type: "Student",
     current_bureau_code: "PGRC",
-    sla_days: 30
+    sla_days: 30,
   });
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
@@ -75,11 +76,6 @@ function CasesContent() {
     fetchCases();
   }, [bureauCode, region, status]);
 
-  const handleApplyFilters = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchCases();
-  };
-
   const handleResetFilters = () => {
     setInstitutionName("");
     setAictePermanentId("");
@@ -110,18 +106,217 @@ function CasesContent() {
         body: JSON.stringify(newCase),
       });
 
-      setCreateSuccess(`Case ${created.case_number} created successfully!`);
+      setCreateSuccess(`Case ${created.case_number} registered successfully!`);
       setTimeout(() => {
         setCreateModalOpen(false);
         setCreateSuccess(null);
         fetchCases();
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
-      setCreateError(err.message || "Failed to create case.");
+      setCreateError(err.message || "Failed to register case.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  // FilterBar configuration: max 4 visible
+  const filterItems: FilterItem[] = [
+    {
+      key: "caseNumber",
+      label: "Case Number",
+      placeholder: "Search Case Number...",
+      value: caseNumber,
+      onChange: (val) => {
+        setCaseNumber(val);
+      },
+    },
+    {
+      key: "institutionName",
+      label: "Institution",
+      placeholder: "Search Institution...",
+      value: institutionName,
+      onChange: (val) => {
+        setInstitutionName(val);
+      },
+    },
+    {
+      key: "bureauCode",
+      label: "Holding Bureau",
+      type: "select",
+      value: bureauCode,
+      onChange: (val) => setBureauCode(val),
+      options: [
+        { label: "Regulation Bureau (RB)", value: "RB" },
+        { label: "Public Grievance Cell (PGRC)", value: "PGRC" },
+        { label: "Approval Bureau (AB)", value: "AB" },
+        { label: "Policy & Academic Planning (PAPB)", value: "PAPB" },
+        { label: "Legal Cell (LC)", value: "LC" },
+      ],
+    },
+    {
+      key: "status",
+      label: "Case Status",
+      type: "select",
+      value: status,
+      onChange: (val) => setStatus(val),
+      options: [
+        { label: "Pending", value: "Pending" },
+        { label: "Under Process", value: "Under Process" },
+        { label: "Disposed", value: "Disposed" },
+        { label: "Transferred", value: "Transferred" },
+        { label: "Escalated", value: "Escalated" },
+      ],
+    },
+    // Extra filters in popover
+    {
+      key: "aictePermanentId",
+      label: "Permanent ID",
+      placeholder: "e.g. 1-1002341",
+      value: aictePermanentId,
+      onChange: (val) => setAictePermanentId(val),
+    },
+    {
+      key: "region",
+      label: "Region",
+      type: "select",
+      value: region,
+      onChange: (val) => setRegion(val),
+      options: [
+        { label: "Northern", value: "Northern" },
+        { label: "Southern", value: "Southern" },
+        { label: "Western", value: "Western" },
+        { label: "Eastern", value: "Eastern" },
+        { label: "Central", value: "Central" },
+      ],
+    },
+    {
+      key: "category",
+      label: "Grievance Category",
+      type: "select",
+      value: category,
+      onChange: (val) => setCategory(val),
+      options: [
+        { label: "Faculty & Staff Grievance", value: "Faculty & Staff Grievance" },
+        { label: "Admission & Capitation Fee", value: "Admission & Capitation Fee" },
+        { label: "Infrastructure & Facilities", value: "Infrastructure & Facilities" },
+        { label: "Ragging & Student Safety", value: "Ragging & Student Safety" },
+        { label: "Maladministration & Harassment", value: "Maladministration & Harassment" },
+        { label: "Examination & Degree Malpractice", value: "Examination & Degree Malpractice" },
+      ],
+    },
+    {
+      key: "startDate",
+      label: "Start Date",
+      type: "date",
+      value: startDate,
+      onChange: (val) => setStartDate(val),
+    },
+    {
+      key: "endDate",
+      label: "End Date",
+      type: "date",
+      value: endDate,
+      onChange: (val) => setEndDate(val),
+    },
+  ];
+
+  // Quick summary counts
+  const pendingCount = cases.filter((c) => c.status === "Pending").length;
+  const underProcessCount = cases.filter((c) => c.status === "Under Process").length;
+  const overdueCount = cases.filter((c) => c.is_overdue).length;
+  const disposedCount = cases.filter((c) => c.status === "Disposed").length;
+
+  // DataTable columns (max 8 visible)
+  const columns: Column<Case>[] = [
+    {
+      key: "case_number",
+      header: "Case Number",
+      render: (c) => (
+        <span className="font-bold text-[#1F2937] whitespace-nowrap">
+          {c.case_number}
+        </span>
+      ),
+    },
+    {
+      key: "institution_name",
+      header: "Institution",
+      render: (c) => (
+        <div className="min-w-[180px] max-w-[260px]">
+          <div className="font-semibold text-[#1F2937] truncate">{c.institution_name}</div>
+          <div className="text-[13px] text-[#6B7280]">
+            {c.aicte_permanent_id} {c.institution_region && `• ${c.institution_region}`}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "title",
+      header: "Grievance Title",
+      render: (c) => (
+        <div className="min-w-[200px] max-w-[320px]">
+          <div className="text-[13px] text-[#6B7280]">{c.category}</div>
+          <div className="font-medium text-[#1F2937] line-clamp-2">{c.title}</div>
+        </div>
+      ),
+    },
+    {
+      key: "current_bureau_code",
+      header: "Bureau",
+      align: "center",
+      render: (c) => (
+        <span className="inline-block text-[13px] px-2.5 py-0.5 rounded-[8px] bg-white border border-[#D1D5DB] text-[#1F2937]">
+          {c.current_bureau_code || "Unassigned"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (c) => <StatusBadge status={c.status} isOverdue={c.is_overdue} />,
+    },
+    {
+      key: "received_date",
+      header: "Lodged Date",
+      render: (c) => (
+        <span className="text-[#6B7280] text-[13px] whitespace-nowrap">
+          {new Date(c.received_date).toLocaleDateString()}
+        </span>
+      ),
+    },
+    {
+      key: "days_remaining",
+      header: "SLA Remaining",
+      render: (c) => (
+        <span className="whitespace-nowrap text-[13px]">
+          {c.status === "Disposed" ? (
+            <span className="text-[#6B7280]">—</span>
+          ) : c.is_overdue ? (
+            <span className="font-semibold text-[#C2410C]">
+              {Math.abs(c.days_remaining || 0)}d Overdue
+            </span>
+          ) : (
+            <span className="text-[#1F2937] font-medium">
+              {c.days_remaining}d left
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "action",
+      header: "Action",
+      align: "right",
+      render: (c) => (
+        <Link
+          href={`/cases/${c.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="font-semibold text-[#C2410C] hover:underline whitespace-nowrap text-[13px]"
+        >
+          View Dossier &rarr;
+        </Link>
+      ),
+    },
+  ];
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -129,272 +324,71 @@ function CasesContent() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav />
 
-        <main className="p-6 space-y-6 overflow-y-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#FED7AA] gap-2">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#C2410C]">
-                Centralized Institution Grievance Register
-              </span>
-              <h2 className="text-xl font-bold text-[#1F2937]">
-                Institution Cases & Complaints
-              </h2>
-            </div>
-            <button
-              onClick={() => setCreateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Lodge New Case
-            </button>
+        <main className="p-8 space-y-8 max-w-[1280px] w-full mx-auto overflow-y-auto">
+          {/* 1. Unified PageHeader */}
+          <PageHeader
+            title="Institution Cases & Complaints"
+            description="Centralized institution grievance register, status tracking, and SLA monitoring across AICTE bureaus."
+            actions={[
+              {
+                label: "+ Lodge New Case",
+                onClick: () => setCreateModalOpen(true),
+              },
+            ]}
+          />
+
+          {/* 2. KPI / Summary Row: Equal height 96px */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <KpiCard
+              label="Total Matching"
+              value={cases.length}
+              icon={<FolderOpen className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Pending"
+              value={pendingCount}
+              icon={<Clock className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Under Process"
+              value={underProcessCount}
+              icon={<RefreshCw className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Overdue SLA"
+              value={overdueCount}
+              alert={overdueCount > 0}
+              icon={<AlertTriangle className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Disposed"
+              value={disposedCount}
+              icon={<CheckCircle2 className="w-4 h-4" />}
+            />
           </div>
 
-          {/* Advanced Search & Filter Bar (8 Filters) */}
-          <div className="p-4 bg-[#FFF7ED] rounded-[8px] border border-[#FED7AA] shadow-sm">
-            <div className="flex items-center gap-2 mb-3 text-xs font-bold text-[#C2410C] uppercase tracking-wide">
-              <Filter className="w-4 h-4" />
-              Advanced Multi-Dimensional Filters
+          {/* 3. Main Content: FilterBar + DataTable */}
+          <div className="space-y-4">
+            <div className="p-4 bg-white border border-[#FED7AA] rounded-[8px]">
+              <FilterBar
+                filters={filterItems}
+                onReset={handleResetFilters}
+                maxVisible={4}
+              />
             </div>
 
-            <form onSubmit={handleApplyFilters} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              {/* 1. Case Number */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">Case Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. AICTE-PGRC-2026..."
-                  value={caseNumber}
-                  onChange={(e) => setCaseNumber(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                />
-              </div>
-
-              {/* 2. AICTE Permanent ID */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">AICTE Permanent ID</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 1-1002341"
-                  value={aictePermanentId}
-                  onChange={(e) => setAictePermanentId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                />
-              </div>
-
-              {/* 3. Institution Name */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">Institution Name</label>
-                <input
-                  type="text"
-                  placeholder="Search name keyword..."
-                  value={institutionName}
-                  onChange={(e) => setInstitutionName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                />
-              </div>
-
-              {/* 4. Bureau / Cell */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">Holding Bureau / Cell</label>
-                <select
-                  value={bureauCode}
-                  onChange={(e) => setBureauCode(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                >
-                  <option value="">All Bureaus</option>
-                  <option value="RB">Regulation Bureau (RB)</option>
-                  <option value="PGRC">Public Grievance Redressal Cell (PGRC)</option>
-                  <option value="AB">Approval Bureau (AB)</option>
-                  <option value="PAPB">Policy & Academic Planning (PAPB)</option>
-                  <option value="LC">Legal Cell (LC)</option>
-                </select>
-              </div>
-
-              {/* 5. Region */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">Region</label>
-                <select
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                >
-                  <option value="">All Regions</option>
-                  <option value="Northern">Northern Region</option>
-                  <option value="Southern">Southern Region</option>
-                  <option value="Western">Western Region</option>
-                  <option value="Eastern">Eastern Region</option>
-                  <option value="Central">Central Region</option>
-                </select>
-              </div>
-
-              {/* 6. Category */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">Complaint Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                >
-                  <option value="">All Categories</option>
-                  <option value="Faculty & Staff Grievance">Faculty & Staff Grievance</option>
-                  <option value="Admission & Capitation Fee">Admission & Capitation Fee</option>
-                  <option value="Infrastructure & Facilities">Infrastructure & Facilities</option>
-                  <option value="Ragging & Student Safety">Ragging & Student Safety</option>
-                  <option value="Maladministration & Harassment">Maladministration & Harassment</option>
-                  <option value="Examination & Degree Malpractice">Examination & Degree Malpractice</option>
-                </select>
-              </div>
-
-              {/* 7. Status */}
-              <div>
-                <label className="block font-semibold text-[#1F2937] mb-1">Case Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Under Process">Under Process</option>
-                  <option value="Disposed">Disposed</option>
-                  <option value="Transferred">Transferred</option>
-                  <option value="Escalated">Escalated</option>
-                </select>
-              </div>
-
-              {/* 8. Date Range / Actions */}
-              <div className="flex items-end gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 py-1.5 bg-[#C2410C] text-white font-bold rounded hover:bg-[#EA580C] transition-colors flex items-center justify-center gap-1"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  Apply Filters
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="px-3 py-1.5 bg-white border border-[#FED7AA] text-[#C2410C] font-semibold rounded hover:bg-[#FFEDD5] transition-colors"
-                  title="Reset Filters"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Cases Table */}
-          <div className="bg-white rounded-[8px] border border-[#FED7AA] shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-[#FED7AA] bg-[#FFF7ED] flex items-center justify-between">
-              <span className="text-xs font-bold text-[#1F2937]">
-                Displaying {cases.length} records • Click any row for details
-              </span>
-            </div>
-
-            <div className="overflow-x-auto max-h-[600px]">
-              <table className="w-full text-left text-xs casetrack-table">
-                <thead>
-                  <tr>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Case Number</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Institution & Region</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Category & Title</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Bureau</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Status</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Received Date</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">SLA Remaining</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C] text-center">Overlaps</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C] text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#FED7AA]">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-[#6B7280]">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-[#C2410C] border-t-transparent rounded-full animate-spin" />
-                          <span>Querying case records...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : cases.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="py-8 text-center text-[#6B7280]">
-                        No matching cases found for the selected filter criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    cases.map((c) => (
-                      <tr
-                        key={c.id}
-                        onClick={() => handleRowClick(c)}
-                        className="cursor-pointer transition-colors"
-                      >
-                        <td className="py-2.5 px-3 font-bold text-[#1F2937] whitespace-nowrap">
-                          {c.case_number}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="font-semibold text-[#1F2937]">{c.institution_name}</div>
-                          <div className="text-[10px] text-[#6B7280]">
-                            {c.aicte_permanent_id} {c.institution_region && `• ${c.institution_region}`}
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 max-w-xs">
-                          <div className="text-[10px] uppercase font-bold text-[#C2410C]">{c.category}</div>
-                          <div className="font-medium text-[#1F2937] truncate">{c.title}</div>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className="font-semibold px-2 py-0.5 rounded bg-[#FFF7ED] border border-[#FED7AA] text-[#9A3412]">
-                            {c.current_bureau_code || "Unassigned"}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <StatusBadge status={c.status} isOverdue={c.is_overdue} />
-                        </td>
-                        <td className="py-2.5 px-3 text-[#6B7280] whitespace-nowrap">
-                          {new Date(c.received_date).toLocaleDateString()}
-                        </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          {c.status === "Disposed" ? (
-                            <span className="text-[#6B7280]">—</span>
-                          ) : c.is_overdue ? (
-                            <span className="font-bold text-[#C2410C]">
-                              {Math.abs(c.days_remaining || 0)}d Overdue
-                            </span>
-                          ) : (
-                            <span className="text-[#1F2937] font-semibold">
-                              {c.days_remaining}d left
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          {c.overlap_count > 0 ? (
-                            <span className="font-bold text-white px-2 py-0.5 rounded-full bg-[#C2410C]">
-                              {c.overlap_count} Linked
-                            </span>
-                          ) : (
-                            <span className="text-[#6B7280]">None</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <Link
-                            href={`/cases/${c.id}`}
-                            className="inline-flex items-center gap-1 font-bold text-[#C2410C] hover:underline"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            Dossier
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              columns={columns}
+              data={cases}
+              keyExtractor={(c) => c.id}
+              emptyMessage={loading ? "Loading case records..." : "No cases match the selected filters."}
+              onRowClick={handleRowClick}
+            />
           </div>
         </main>
       </div>
 
-      {/* Case Quick Drawer */}
+      {/* Drawer for Case Quick Preview */}
       <Drawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -403,107 +397,130 @@ function CasesContent() {
 
       {/* Create Case Modal */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[8px] border border-[#FED7AA] shadow-xl w-full max-w-lg p-6 space-y-4">
-            <div className="border-b border-[#FED7AA] pb-3">
-              <span className="text-xs font-bold uppercase text-[#C2410C]">Intake Registration</span>
-              <h3 className="text-base font-bold text-[#1F2937]">Lodge Formal Complaint</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white border border-[#FED7AA] rounded-[8px] p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#FED7AA]">
+              <div>
+                <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
+                  Lodge New Grievance Case
+                </h2>
+                <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 m-0">
+                  Register official complaint for regulatory bureau tracking
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(false)}
+                className="p-1 rounded hover:bg-[#FFF7ED] text-[#6B7280] hover:text-[#1F2937]"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {createError && (
-              <div className="p-3 bg-[#FFF7ED] border border-[#C2410C] text-xs text-[#C2410C] rounded">
-                {createError}
-              </div>
-            )}
             {createSuccess && (
-              <div className="p-3 bg-[#FFF7ED] border border-[#F97316] text-xs text-[#C2410C] font-bold rounded">
+              <div className="p-3 bg-white border border-[#FED7AA] text-[#1F2937] rounded-[8px] text-[14px]">
                 {createSuccess}
               </div>
             )}
+            {createError && (
+              <div className="p-3 bg-white border border-[#C2410C] text-[#C2410C] rounded-[8px] text-[14px]">
+                {createError}
+              </div>
+            )}
 
-            <form onSubmit={handleCreateCase} className="space-y-3 text-xs">
+            <form onSubmit={handleCreateCase} className="space-y-4 text-[14px]">
               <div>
-                <label className="block font-bold text-[#1F2937] mb-1">
-                  AICTE Permanent ID (Exact Match Required) *
+                <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                  AICTE Permanent ID *
                 </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. 1-1002341"
                   value={newCase.aicte_permanent_id}
-                  onChange={(e) => setNewCase({ ...newCase, aicte_permanent_id: e.target.value.toUpperCase() })}
-                  className="w-full px-3 py-1.5 border border-[#FED7AA] rounded focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                  onChange={(e) => setNewCase({ ...newCase, aicte_permanent_id: e.target.value })}
+                  className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#1F2937] mb-1">Complaint Category *</label>
-                  <select
-                    value={newCase.category}
-                    onChange={(e) => setNewCase({ ...newCase, category: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-[#FED7AA] rounded focus:outline-none focus:ring-1 focus:ring-[#F97316]"
-                  >
-                    <option value="Faculty & Staff Grievance">Faculty & Staff Grievance</option>
-                    <option value="Admission & Capitation Fee">Admission & Capitation Fee</option>
-                    <option value="Infrastructure & Facilities">Infrastructure & Facilities</option>
-                    <option value="Ragging & Student Safety">Ragging & Student Safety</option>
-                    <option value="Maladministration & Harassment">Maladministration & Harassment</option>
-                    <option value="General Grievance">General Grievance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-[#1F2937] mb-1">Initial Bureau Routing *</label>
+                  <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                    Bureau / Cell
+                  </label>
                   <select
                     value={newCase.current_bureau_code}
                     onChange={(e) => setNewCase({ ...newCase, current_bureau_code: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-[#FED7AA] rounded focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                    className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   >
-                    <option value="PGRC">Public Grievance Redressal Cell (PGRC)</option>
-                    <option value="RB">Regulation Bureau (RB)</option>
-                    <option value="AB">Approval Bureau (AB)</option>
+                    <option value="PGRC">PGRC</option>
+                    <option value="RB">Regulation Bureau</option>
+                    <option value="AB">Approval Bureau</option>
+                    <option value="PAPB">PAPB</option>
+                    <option value="LC">Legal Cell</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={newCase.category}
+                    onChange={(e) => setNewCase({ ...newCase, category: e.target.value })}
+                    className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                  >
+                    <option value="General Grievance">General Grievance</option>
+                    <option value="Faculty & Staff Grievance">Faculty & Staff</option>
+                    <option value="Admission & Capitation Fee">Admission & Fees</option>
+                    <option value="Infrastructure & Facilities">Infrastructure</option>
+                    <option value="Ragging & Student Safety">Student Safety</option>
+                    <option value="Maladministration & Harassment">Maladministration</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-[#1F2937] mb-1">Grievance Subject / Title *</label>
+                <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                  Grievance Title *
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="Brief summary of grievance..."
+                  placeholder="Summary of complaint..."
                   value={newCase.title}
                   onChange={(e) => setNewCase({ ...newCase, title: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-[#FED7AA] rounded focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                  className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-[#1F2937] mb-1">Detailed Description *</label>
+                <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                  Detailed Description *
+                </label>
                 <textarea
                   required
                   rows={3}
-                  placeholder="Complete details, dates, and evidence descriptions..."
+                  placeholder="Elaborate facts, dates, affected parties..."
                   value={newCase.description}
                   onChange={(e) => setNewCase({ ...newCase, description: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-[#FED7AA] rounded focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                  className="w-full p-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#FED7AA]">
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#FED7AA]">
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="px-3 py-1.5 border border-[#FED7AA] text-[#6B7280] font-semibold rounded hover:bg-[#FFF7ED]"
+                  className="px-4 py-2 text-[14px] font-semibold rounded-[8px] bg-white border border-[#FED7AA] text-[#1F2937] hover:bg-[#FFF7ED]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-1.5 bg-[#C2410C] text-white font-bold rounded hover:bg-[#EA580C] disabled:opacity-50"
+                  className="px-4 py-2 text-[14px] font-semibold rounded-[8px] bg-[#C2410C] text-white hover:bg-[#EA580C] disabled:opacity-50"
                 >
-                  {submitting ? "Analyzing & Saving..." : "Lodge Case & Run Overlap Engine"}
+                  {submitting ? "Submitting..." : "Submit Case"}
                 </button>
               </div>
             </form>
@@ -518,14 +535,8 @@ export default function CasesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen bg-white">
-          <Sidebar />
-          <div className="flex-1 flex flex-col">
-            <TopNav />
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-5 h-5 border-2 border-[#C2410C] border-t-transparent rounded-full animate-spin" />
-            </div>
-          </div>
+        <div className="flex h-screen items-center justify-center bg-white text-[#1F2937]">
+          <div className="w-5 h-5 border-2 border-[#C2410C] border-t-transparent rounded-full animate-spin" />
         </div>
       }
     >
@@ -533,4 +544,3 @@ export default function CasesPage() {
     </Suspense>
   );
 }
-

@@ -43,53 +43,52 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF7ED] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex p-3 bg-[#F97316] rounded-xl text-white shadow-md mb-3">
+        <div className="inline-flex p-3 bg-[#C2410C] rounded-[8px] text-white mb-3">
           <Landmark className="w-8 h-8" />
         </div>
-        <span className="block text-xs font-bold tracking-widest uppercase text-[#C2410C]">
-          All India Council for Technical Education
-        </span>
-        <h1 className="text-2xl font-bold tracking-tight text-[#1F2937] mt-1">
-          Official Registration
+        <h1 className="text-[28px] font-bold text-[#1F2937] leading-[1.5] m-0">
+          Official Account Registration
         </h1>
-        <p className="mt-1 text-xs text-[#6B7280]">
-          Requests are reviewed and approved by System Administrators
+        <p className="mt-1 text-[15px] text-[#6B7280] leading-[1.5] m-0">
+          Account applications are reviewed and activated by System Administrators
         </p>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-md rounded-[8px] border border-[#FED7AA] sm:px-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white p-6 sm:p-8 rounded-[8px] border border-[#FED7AA] space-y-6">
           {success ? (
-            <div className="text-center py-4 space-y-3">
-              <div className="w-12 h-12 mx-auto rounded-full bg-[#FFF7ED] text-[#C2410C] flex items-center justify-center">
+            <div className="text-center py-4 space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-full bg-white border border-[#FED7AA] text-[#C2410C] flex items-center justify-center">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h2 className="text-lg font-bold text-[#1F2937]">Registration Submitted</h2>
-              <p className="text-xs text-[#6B7280]">
-                Your account for <strong className="text-[#1F2937]">{email}</strong> has been created with role <strong className="text-[#1F2937]">{role}</strong> and is currently awaiting Admin approval.
+              <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
+                Registration Submitted
+              </h2>
+              <p className="text-[14px] text-[#6B7280] leading-[1.5] m-0">
+                Your account for <strong className="text-[#1F2937]">{email}</strong> has been submitted with role <strong className="text-[#1F2937]">{role}</strong> and is awaiting Admin authorization.
               </p>
               <Link
                 href="/login"
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[14px] font-semibold rounded-[8px] bg-[#C2410C] text-white hover:bg-[#EA580C] transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Return to Sign In
+                <span>Return to Sign In</span>
               </Link>
             </div>
           ) : (
             <>
               {error && (
-                <div className="mb-4 p-3 rounded-[6px] bg-[#FFF7ED] border border-[#C2410C] flex items-start gap-2 text-xs text-[#C2410C]">
+                <div className="p-3 rounded-[8px] bg-white border border-[#C2410C] flex items-start gap-2 text-[14px] text-[#C2410C]">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
 
-              <form className="space-y-4" onSubmit={handleRegister}>
+              <form className="space-y-4 text-[14px]" onSubmit={handleRegister}>
                 <div>
-                  <label htmlFor="name" className="block text-xs font-bold text-[#1F2937]">
+                  <label htmlFor="name" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
                     Full Name & Designation
                   </label>
                   <input
@@ -99,12 +98,12 @@ export default function RegisterPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Dr. Rajesh Sharma"
-                    className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                    className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="reg-email" className="block text-xs font-bold text-[#1F2937]">
+                  <label htmlFor="reg-email" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
                     Official Email Address
                   </label>
                   <input
@@ -114,12 +113,12 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="r.sharma@aicte.gov.in"
-                    className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                    className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="reg-pwd" className="block text-xs font-bold text-[#1F2937]">
+                  <label htmlFor="reg-pwd" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
                     Password
                   </label>
                   <input
@@ -130,37 +129,40 @@ export default function RegisterPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                    className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="role" className="block text-xs font-bold text-[#1F2937]">
+                  <label htmlFor="role" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
                     AICTE Cell / Bureau Role
                   </label>
                   <select
                     id="role"
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                    className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                   >
                     <option value="PGRC">Public Grievance Redressal Cell (PGRC)</option>
                     <option value="RB">Regulation Bureau (RB)</option>
-                    <option value="Senior Manager">Senior Manager / Grievance Director</option>
+                    <option value="AB">Approval Bureau (AB)</option>
+                    <option value="PAPB">Policy & Academic Planning (PAPB)</option>
+                    <option value="LC">Legal Cell (LC)</option>
                     <option value="Regional Office">Regional Office (RO)</option>
+                    <option value="Senior Manager">Senior Management / Director</option>
                   </select>
                 </div>
 
                 {role === "Regional Office" && (
                   <div>
-                    <label htmlFor="region" className="block text-xs font-bold text-[#1F2937]">
-                      Assigned AICTE Region
+                    <label htmlFor="region" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                      Assigned Region
                     </label>
                     <select
                       id="region"
                       value={region}
                       onChange={(e) => setRegion(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                      className="w-full h-[38px] px-3 bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                     >
                       <option value="Northern">Northern Region</option>
                       <option value="Southern">Southern Region</option>
@@ -174,17 +176,18 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] shadow-sm transition-colors disabled:opacity-50"
+                  className="w-full py-2.5 px-4 text-[14px] font-semibold rounded-[8px] bg-[#C2410C] text-white hover:bg-[#EA580C] transition-colors disabled:opacity-50"
                 >
-                  {loading ? "Submitting..." : "Submit Registration Request"}
+                  {loading ? "Submitting Application..." : "Submit Registration Application"}
                 </button>
-
-                <div className="text-center pt-2">
-                  <Link href="/login" className="text-xs text-[#6B7280] hover:text-[#C2410C]">
-                    Already registered? Sign in
-                  </Link>
-                </div>
               </form>
+
+              <div className="text-center text-[13px] text-[#6B7280]">
+                Already registered?{" "}
+                <Link href="/login" className="font-semibold text-[#C2410C] hover:underline">
+                  Sign in here
+                </Link>
+              </div>
             </>
           )}
         </div>

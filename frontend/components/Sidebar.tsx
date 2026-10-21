@@ -13,7 +13,7 @@ import {
   FileBarChart2,
   ShieldCheck,
   LogOut,
-  Landmark
+  Landmark,
 } from "lucide-react";
 import { User } from "@/lib/types";
 
@@ -46,7 +46,6 @@ export const Sidebar: React.FC = () => {
     { label: "Reports & Analytics", href: "/reports", icon: FileBarChart2 },
   ];
 
-  // Admin access
   if (user?.role === "Admin" || user?.role === "Senior Manager") {
     navItems.push({ label: "Admin & Settings", href: "/admin", icon: ShieldCheck });
   }
@@ -54,42 +53,32 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 min-h-screen bg-white border-r border-[#FED7AA] flex flex-col justify-between shrink-0">
       <div>
-        {/* Brand / Logo */}
-        <div className="p-4 border-b border-[#FED7AA] bg-[#FFF7ED]">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#F97316] rounded-md text-white shadow-sm">
-              <Landmark className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="block text-xs font-bold uppercase tracking-wider text-[#C2410C]">
-                All India Council for Technical Education
-              </span>
-              <h1 className="text-lg font-bold tracking-tight text-[#1F2937]">
-                CaseTrack
-              </h1>
-            </div>
+        {/* Brand: "AICTE CaseTrack" only */}
+        <div className="h-16 px-6 border-b border-[#FED7AA] flex items-center gap-3">
+          <div className="p-1.5 bg-[#C2410C] rounded-[8px] text-white shrink-0">
+            <Landmark className="w-5 h-5" />
           </div>
-          <div className="mt-2 text-[11px] text-[#6B7280]">
-            Integrated Complaint & Overlap Monitoring System
-          </div>
+          <span className="text-[18px] font-bold text-[#1F2937] leading-[1.5] truncate">
+            AICTE CaseTrack
+          </span>
         </div>
 
         {/* Navigation Items */}
-        <nav className="px-2 pt-3 space-y-1">
+        <nav className="p-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-[6px] transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 text-[14px] font-semibold rounded-[8px] transition-colors leading-[1.5] ${
                   isActive
-                    ? "bg-[#C2410C] text-white shadow-sm"
+                    ? "bg-[#C2410C] text-white"
                     : "text-[#1F2937] hover:bg-[#FFF7ED] hover:text-[#C2410C]"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-[#C2410C]"}`} />
+                <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-[#6B7280]"}`} />
                 <span>{item.label}</span>
               </Link>
             );
@@ -101,13 +90,13 @@ export const Sidebar: React.FC = () => {
       <div className="p-4 border-t border-[#FED7AA]">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold text-[#C2410C] bg-[#FFF7ED] hover:bg-[#FFEDD5] border border-[#FED7AA] rounded-[6px] transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-semibold text-[#1F2937] bg-white hover:bg-[#FFF7ED] border border-[#FED7AA] rounded-[8px] transition-colors leading-[1.5]"
         >
-          <LogOut className="w-3.5 h-3.5" />
-          Sign Out
+          <LogOut className="w-3.5 h-3.5 text-[#6B7280]" />
+          <span>Sign Out</span>
         </button>
-        <p className="mt-3 text-[10px] text-center text-[#6B7280]">
-          SIH 2026 • Problem PS SIH26264
+        <p className="mt-2 text-[13px] text-center text-[#6B7280] leading-[1.5] m-0">
+          SIH 2026 • PS SIH26264
         </p>
       </div>
     </aside>

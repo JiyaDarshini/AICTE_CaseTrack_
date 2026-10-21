@@ -4,13 +4,15 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { TopNav } from "@/components/TopNav";
+import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/KpiCard";
+import { AlertStrip } from "@/components/AlertStrip";
 import { StatusBadge } from "@/components/StatusBadge";
-import { OverlapBanner } from "@/components/OverlapBanner";
 import { apiRequest } from "@/lib/api";
-import { CaseDetail, CaseAction } from "@/lib/types";
+import { CaseDetail } from "@/lib/types";
 import {
   ArrowLeft, Building, Calendar, Clock, AlertTriangle,
-  UserCheck, ArrowRightLeft, ShieldAlert, FileText, CheckCircle2, Send
+  ArrowRightLeft, ShieldAlert, Send
 } from "lucide-react";
 import Link from "next/link";
 
@@ -58,7 +60,7 @@ export default function CaseDetailPage() {
         method: "PATCH",
         body: JSON.stringify(statusAction),
       });
-      setFeedbackMsg({ text: "Case status and audit history updated!" });
+      setFeedbackMsg({ text: "Case status and audit history updated successfully." });
       setStatusAction((prev) => ({ ...prev, remarks: "" }));
       fetchCase();
     } catch (err: any) {
@@ -78,7 +80,7 @@ export default function CaseDetailPage() {
         method: "POST",
         body: JSON.stringify(transferAction),
       });
-      setFeedbackMsg({ text: `Case transferred to ${transferAction.to_bureau_code}!` });
+      setFeedbackMsg({ text: `Case successfully transferred to ${transferAction.to_bureau_code}.` });
       setTransferAction((prev) => ({ ...prev, remarks: "" }));
       fetchCase();
     } catch (err: any) {
@@ -98,7 +100,7 @@ export default function CaseDetailPage() {
         method: "POST",
         body: JSON.stringify(escalateAction),
       });
-      setFeedbackMsg({ text: "Case escalated to Senior Management!" });
+      setFeedbackMsg({ text: "Case escalated to Senior Management." });
       setEscalateAction((prev) => ({ ...prev, remarks: "" }));
       fetchCase();
     } catch (err: any) {
@@ -128,143 +130,155 @@ export default function CaseDetailPage() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav />
 
-        <main className="p-6 space-y-6 overflow-y-auto">
-          {/* Back button and Case Number */}
-          <div className="flex items-center justify-between pb-4 border-b border-[#FED7AA]">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/cases"
-                className="p-1.5 rounded-full hover:bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <div>
-                <span className="text-xs font-bold text-[#C2410C] uppercase tracking-wide">
-                  Case Record & Official Dossier
-                </span>
-                <h2 className="text-xl font-bold text-[#1F2937]">
-                  {caseData.case_number}
-                </h2>
-              </div>
-            </div>
+        <main className="p-8 space-y-8 max-w-[1280px] w-full mx-auto overflow-y-auto">
+          {/* 1. Unified PageHeader */}
+          <PageHeader
+            title={`Case ${caseData.case_number}`}
+            description={`${caseData.category} • ${caseData.institution_name} (${caseData.aicte_permanent_id})`}
+            actions={[
+              {
+                label: "Back to Cases",
+                href: "/cases",
+                variant: "secondary",
+                icon: <ArrowLeft className="w-4 h-4" />,
+              },
+            ]}
+          />
 
-            <div className="flex items-center gap-3">
-              <StatusBadge status={caseData.status} isOverdue={caseData.is_overdue} />
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#FFF7ED] border border-[#FED7AA] text-[#C2410C]">
-                Bureau: {caseData.current_bureau_code || "Unassigned"}
-              </span>
-            </div>
-          </div>
-
-          {/* Overlapping cases banner if detected */}
+          {/* 2. Compact Alert Strip (Max 1) if Overlaps Exist */}
           {caseData.overlapping_cases && caseData.overlapping_cases.length > 0 && (
-            <div className="space-y-3">
-              {caseData.overlapping_cases.map((ov, idx) => (
-                <OverlapBanner
-                  key={idx}
-                  groupId={ov.group_id}
-                  institutionName={caseData.institution_name || ""}
-                  aictePermanentId={caseData.aicte_permanent_id || ""}
-                  severity={ov.severity}
-                  score={ov.score}
-                  explanation={ov.explanation}
-                  rulesFired={ov.rules_fired}
-                />
-              ))}
-            </div>
+            <AlertStrip
+              title={`${caseData.overlapping_cases.length} Potential Overlapping Case${caseData.overlapping_cases.length > 1 ? "s" : ""} Detected`}
+              description="Review matched institutional complaints to prevent duplicated investigation."
+              actionText="Review Overlap"
+              actionHref={`/overlaps#group-${caseData.overlapping_cases[0].group_id}`}
+            />
           )}
 
-          {/* Dossier Grid: 2 Columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 3. KPI / Summary Row: Equal height 96px */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <KpiCard
+              label="Current Status"
+              value={caseData.status}
+              icon={<Clock className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Holding Bureau"
+              value={caseData.current_bureau_code || "Unassigned"}
+              icon={<Building className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Lodged Date"
+              value={new Date(caseData.received_date).toLocaleDateString()}
+              icon={<Calendar className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="SLA Remaining"
+              value={
+                caseData.status === "Disposed"
+                  ? "Disposed"
+                  : caseData.is_overdue
+                  ? `${Math.abs(caseData.days_remaining || 0)}d Overdue`
+                  : `${caseData.days_remaining}d remaining`
+              }
+              alert={caseData.is_overdue}
+              icon={<AlertTriangle className="w-4 h-4" />}
+            />
+          </div>
+
+          {/* 4. Main Content: 2 Columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left 2 Cols: Details & Timeline */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-8">
               {/* Institution & Overview Card */}
-              <div className="p-5 bg-white rounded-[8px] border border-[#FED7AA] shadow-sm space-y-4">
-                <div className="flex items-start justify-between border-b border-[#FED7AA] pb-3">
+              <div className="p-[20px] bg-white rounded-[8px] border border-[#FED7AA] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between border-b border-[#FED7AA] pb-4 gap-2">
                   <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#6B7280]">
+                    <span className="text-[13px] text-[#6B7280] block font-medium">
                       Subject Institution
                     </span>
-                    <h3 className="font-bold text-base text-[#1F2937]">
+                    <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
                       {caseData.institution_name}
-                    </h3>
-                    <p className="text-xs text-[#6B7280]">
+                    </h2>
+                    <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 m-0">
                       AICTE Permanent ID: <strong className="text-[#1F2937]">{caseData.aicte_permanent_id}</strong>
                       {caseData.institution_region && ` • ${caseData.institution_region} Region`}
                     </p>
                   </div>
                   <Link
                     href={`/institutions/${caseData.institution_id}`}
-                    className="text-xs font-bold text-[#C2410C] hover:underline"
+                    className="text-[13px] font-semibold text-[#C2410C] hover:underline shrink-0"
                   >
-                    View All Cases for this Institution &rarr;
+                    View Institution Profile &rarr;
                   </Link>
                 </div>
 
                 <div>
-                  <span className="text-xs font-bold text-[#C2410C] uppercase tracking-wide">
-                    {caseData.category}
+                  <span className="text-[13px] text-[#6B7280] block font-medium">
+                    Grievance Subject
                   </span>
-                  <h4 className="text-sm font-bold text-[#1F2937] mt-0.5">
+                  <h3 className="text-[15px] font-bold text-[#1F2937] leading-[1.5] mt-0.5 m-0">
                     {caseData.title}
-                  </h4>
-                  <p className="text-xs text-[#1F2937] mt-2 leading-relaxed whitespace-pre-line bg-[#FFF7ED]/50 p-3 rounded border border-[#FED7AA]/50">
+                  </h3>
+                  <p className="text-[14px] text-[#1F2937] mt-2 leading-[1.5] whitespace-pre-line p-3 rounded-[8px] bg-white border border-[#FED7AA]">
                     {caseData.description}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2">
-                  <div className="p-2.5 bg-[#FFF7ED] rounded border border-[#FED7AA]">
-                    <span className="text-[#6B7280] block">Complainant</span>
-                    <span className="font-semibold text-[#1F2937]">{caseData.complainant_type || "Direct Public"}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[13px] pt-2">
+                  <div className="p-3 bg-white rounded-[8px] border border-[#FED7AA]">
+                    <span className="text-[#6B7280] block text-[13px]">Complainant</span>
+                    <span className="font-semibold text-[#1F2937] text-[14px]">{caseData.complainant_type || "Direct Public"}</span>
                   </div>
-                  <div className="p-2.5 bg-[#FFF7ED] rounded border border-[#FED7AA]">
-                    <span className="text-[#6B7280] block">Received On</span>
-                    <span className="font-semibold text-[#1F2937]">
-                      {new Date(caseData.received_date).toLocaleDateString()}
-                    </span>
+                  <div className="p-3 bg-white rounded-[8px] border border-[#FED7AA]">
+                    <span className="text-[#6B7280] block text-[13px]">Category</span>
+                    <span className="font-semibold text-[#1F2937] text-[14px]">{caseData.category}</span>
                   </div>
-                  <div className="p-2.5 bg-[#FFF7ED] rounded border border-[#FED7AA]">
-                    <span className="text-[#6B7280] block">Expected Disposal</span>
-                    <span className={`font-semibold ${caseData.is_overdue ? "text-[#C2410C]" : "text-[#1F2937]"}`}>
+                  <div className="p-3 bg-white rounded-[8px] border border-[#FED7AA]">
+                    <span className="text-[#6B7280] block text-[13px]">Expected Disposal</span>
+                    <span className={`font-semibold text-[14px] ${caseData.is_overdue ? "text-[#C2410C]" : "text-[#1F2937]"}`}>
                       {caseData.expected_disposal_date ? new Date(caseData.expected_disposal_date).toLocaleDateString() : "—"}
                     </span>
                   </div>
-                  <div className="p-2.5 bg-[#FFF7ED] rounded border border-[#FED7AA]">
-                    <span className="text-[#6B7280] block">SLA Status</span>
-                    <span className={`font-bold ${caseData.is_overdue ? "text-[#C2410C]" : "text-[#1F2937]"}`}>
-                      {caseData.status === "Disposed" ? "Disposed" : caseData.is_overdue ? `${Math.abs(caseData.days_remaining || 0)}d Overdue` : `${caseData.days_remaining}d remaining`}
+                  <div className="p-3 bg-white rounded-[8px] border border-[#FED7AA]">
+                    <span className="text-[#6B7280] block text-[13px]">Holding Cell</span>
+                    <span className="font-semibold text-[#1F2937] text-[14px]">
+                      {caseData.current_bureau_code}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Chronological Action History Timeline */}
-              <div className="p-5 bg-white rounded-[8px] border border-[#FED7AA] shadow-sm">
-                <h3 className="font-bold text-sm text-[#1F2937] mb-4 pb-2 border-b border-[#FED7AA]">
-                  Chronological Action Timeline & Audit Log ({caseData.actions.length} Events)
-                </h3>
+              {/* Action History Timeline */}
+              <div className="p-[20px] bg-white rounded-[8px] border border-[#FED7AA] space-y-4">
+                <div className="border-b border-[#FED7AA] pb-3">
+                  <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
+                    Action Timeline & Audit Trail
+                  </h2>
+                  <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 m-0">
+                    Chronological record of official hearings, transfers, and directives ({caseData.actions.length} events)
+                  </p>
+                </div>
 
-                <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#FED7AA]">
+                <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#FED7AA]">
                   {caseData.actions.map((act) => (
                     <div key={act.id} className="relative">
-                      {/* Timeline dot */}
-                      <div className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-[#C2410C] border-2 border-white" />
-                      <div className="p-3 bg-[#FFF7ED] rounded-[6px] border border-[#FED7AA]">
+                      <div className="absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full bg-[#C2410C]" />
+                      <div className="p-3 bg-white rounded-[8px] border border-[#FED7AA] text-[14px]">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-xs text-[#C2410C]">
+                          <span className="font-bold text-[#1F2937]">
                             {act.action_type}
                           </span>
-                          <span className="text-[10px] text-[#6B7280]">
+                          <span className="text-[13px] text-[#6B7280]">
                             {new Date(act.created_at).toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-xs text-[#1F2937] mt-1 leading-relaxed">
+                        <p className="text-[#1F2937] mt-1 leading-[1.5] m-0 line-clamp-2">
                           {act.remarks}
                         </p>
-                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#FED7AA]/60 text-[10px] text-[#6B7280]">
-                          <span>Logged by: <strong className="text-[#1F2937]">{act.officer_name || "Official"}</strong></span>
-                          {act.bureau_code && <span>• Bureau: <strong className="text-[#1F2937]">{act.bureau_code}</strong></span>}
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#FED7AA] text-[13px] text-[#6B7280]">
+                          <span>Officer: <strong className="text-[#1F2937] font-semibold">{act.officer_name || "Official"}</strong></span>
+                          {act.bureau_code && <span>• Bureau: <strong className="text-[#1F2937] font-semibold">{act.bureau_code}</strong></span>}
                           {act.from_bureau_code && act.to_bureau_code && (
                             <span>• Transferred: <strong>{act.from_bureau_code} &rarr; {act.to_bureau_code}</strong></span>
                           )}
@@ -278,18 +292,20 @@ export default function CaseDetailPage() {
 
             {/* Right Col: Officer Action Controls */}
             <div className="space-y-6">
-              {/* Officer Action Box */}
-              <div className="p-5 bg-white rounded-[8px] border border-[#FED7AA] shadow-sm">
-                <h3 className="font-bold text-sm text-[#1F2937] mb-3">
+              <div className="p-[20px] bg-white rounded-[8px] border border-[#FED7AA]">
+                <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
                   Officer Action Center
-                </h3>
+                </h2>
+                <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 mb-4 m-0">
+                  Update status, route to another bureau, or escalate
+                </p>
 
                 {feedbackMsg && (
                   <div
-                    className={`mb-3 p-2.5 rounded text-xs border ${
+                    className={`mb-4 p-3 rounded-[8px] text-[14px] border ${
                       feedbackMsg.error
-                        ? "bg-[#FFF7ED] border-[#C2410C] text-[#C2410C]"
-                        : "bg-[#FFF7ED] border-[#F97316] text-[#C2410C] font-semibold"
+                        ? "bg-white border-[#C2410C] text-[#C2410C]"
+                        : "bg-white border-[#FED7AA] text-[#1F2937]"
                     }`}
                   >
                     {feedbackMsg.text}
@@ -297,7 +313,7 @@ export default function CaseDetailPage() {
                 )}
 
                 {/* Tabs */}
-                <div className="flex border-b border-[#FED7AA] text-xs font-bold mb-3">
+                <div className="flex border-b border-[#FED7AA] text-[14px] font-semibold mb-4">
                   <button
                     onClick={() => setActiveTab("status")}
                     className={`py-2 px-3 border-b-2 transition-colors ${
@@ -306,7 +322,7 @@ export default function CaseDetailPage() {
                         : "border-transparent text-[#6B7280] hover:text-[#1F2937]"
                     }`}
                   >
-                    Status Update
+                    Status
                   </button>
                   <button
                     onClick={() => setActiveTab("transfer")}
@@ -332,13 +348,15 @@ export default function CaseDetailPage() {
 
                 {/* Tab 1: Update Status */}
                 {activeTab === "status" && (
-                  <form onSubmit={handleStatusSubmit} className="space-y-3 text-xs">
+                  <form onSubmit={handleStatusSubmit} className="space-y-4 text-[14px]">
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">New Status</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        New Status
+                      </label>
                       <select
                         value={statusAction.status}
                         onChange={(e) => setStatusAction({ ...statusAction, status: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full h-[38px] px-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       >
                         <option value="Under Process">Under Process</option>
                         <option value="Pending">Pending Inquiry</option>
@@ -347,32 +365,36 @@ export default function CaseDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">Official Remarks (Mandatory) *</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        Official Remarks (Mandatory) *
+                      </label>
                       <textarea
                         required
                         rows={3}
                         placeholder="Details of inquiry, hearing proceedings, or directives issued..."
                         value={statusAction.remarks}
                         onChange={(e) => setStatusAction({ ...statusAction, remarks: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full p-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       />
                     </div>
 
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">Next Action Directive</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        Next Action Directive
+                      </label>
                       <input
                         type="text"
                         placeholder="e.g. Schedule hearing on 25th May..."
                         value={statusAction.next_action}
                         onChange={(e) => setStatusAction({ ...statusAction, next_action: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full h-[38px] px-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-2 bg-[#C2410C] text-white font-bold rounded hover:bg-[#EA580C] transition-colors disabled:opacity-50"
+                      className="w-full py-2.5 bg-[#C2410C] text-white font-semibold rounded-[8px] hover:bg-[#EA580C] transition-colors disabled:opacity-50 text-[14px]"
                     >
                       {submitting ? "Recording..." : "Record Status Update"}
                     </button>
@@ -381,13 +403,15 @@ export default function CaseDetailPage() {
 
                 {/* Tab 2: Transfer Case */}
                 {activeTab === "transfer" && (
-                  <form onSubmit={handleTransferSubmit} className="space-y-3 text-xs">
+                  <form onSubmit={handleTransferSubmit} className="space-y-4 text-[14px]">
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">Target Bureau / Cell</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        Target Bureau / Cell
+                      </label>
                       <select
                         value={transferAction.to_bureau_code}
                         onChange={(e) => setTransferAction({ ...transferAction, to_bureau_code: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full h-[38px] px-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       >
                         <option value="RB">Regulation Bureau (RB)</option>
                         <option value="PGRC">Public Grievance Redressal Cell (PGRC)</option>
@@ -398,64 +422,70 @@ export default function CaseDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">Transfer Justification *</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        Transfer Justification *
+                      </label>
                       <textarea
                         required
                         rows={3}
-                        placeholder="State legal or jurisdictional grounds for routing to another Bureau..."
+                        placeholder="State legal or jurisdictional grounds for routing..."
                         value={transferAction.remarks}
                         onChange={(e) => setTransferAction({ ...transferAction, remarks: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full p-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-2 bg-[#EA580C] text-white font-bold rounded hover:bg-[#C2410C] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 bg-[#C2410C] text-white font-semibold rounded-[8px] hover:bg-[#EA580C] transition-colors disabled:opacity-50 text-[14px] flex items-center justify-center gap-2"
                     >
-                      <ArrowRightLeft className="w-3.5 h-3.5" />
-                      {submitting ? "Transferring..." : "Execute Case Transfer"}
+                      <ArrowRightLeft className="w-4 h-4" />
+                      <span>{submitting ? "Transferring..." : "Execute Case Transfer"}</span>
                     </button>
                   </form>
                 )}
 
                 {/* Tab 3: Escalate Case */}
                 {activeTab === "escalate" && (
-                  <form onSubmit={handleEscalateSubmit} className="space-y-3 text-xs">
+                  <form onSubmit={handleEscalateSubmit} className="space-y-4 text-[14px]">
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">Escalation Trigger</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        Escalation Trigger
+                      </label>
                       <select
                         value={escalateAction.escalation_reason}
                         onChange={(e) => setEscalateAction({ ...escalateAction, escalation_reason: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full h-[38px] px-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       >
                         <option value="SLA / Inaction">Imminent / Existing SLA Breach</option>
                         <option value="Inter-Bureau Deadlock">Inter-Bureau Deadlock / Jurisdiction Conflict</option>
                         <option value="Severe Regulatory Violation">Severe Statutory Non-Compliance</option>
-                        <option value="High Public Grievance">High Visibility / Media Inquiry</option>
+                        <option value="High Public Grievance">High Visibility / Public Grievance</option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="block font-bold text-[#1F2937] mb-1">Escalation Notes for Senior Management *</label>
+                      <label className="block text-[13px] font-semibold text-[#1F2937] mb-1">
+                        Escalation Briefing Notes *
+                      </label>
                       <textarea
                         required
                         rows={3}
                         placeholder="Comprehensive briefing note for Member Secretary / Director..."
                         value={escalateAction.remarks}
                         onChange={(e) => setEscalateAction({ ...escalateAction, remarks: e.target.value })}
-                        className="w-full px-2.5 py-1.5 border border-[#FED7AA] rounded text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                        className="w-full p-3 border border-[#FED7AA] rounded-[8px] text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316] bg-white"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-2 bg-[#C2410C] text-white font-bold rounded hover:bg-[#9A3412] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 bg-[#C2410C] text-white font-semibold rounded-[8px] hover:bg-[#EA580C] transition-colors disabled:opacity-50 text-[14px] flex items-center justify-center gap-2"
                     >
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                      {submitting ? "Escalating..." : "Escalate to Senior Management"}
+                      <ShieldAlert className="w-4 h-4" />
+                      <span>{submitting ? "Escalating..." : "Escalate to Senior Management"}</span>
                     </button>
                   </form>
                 )}

@@ -4,10 +4,13 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { TopNav } from "@/components/TopNav";
+import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/KpiCard";
+import { DataTable, Column } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiRequest } from "@/lib/api";
-import { InstitutionDetail } from "@/lib/types";
-import { ArrowLeft, Building2, MapPin, Landmark, FolderOpen, ExternalLink, ShieldCheck } from "lucide-react";
+import { InstitutionDetail, Case } from "@/lib/types";
+import { ArrowLeft, Building2, MapPin, Landmark, FolderOpen } from "lucide-react";
 import Link from "next/link";
 
 export default function InstitutionDetailPage() {
@@ -44,152 +47,173 @@ export default function InstitutionDetailPage() {
     );
   }
 
+  const caseColumns: Column<InstitutionDetail["cases"][number]>[] = [
+    {
+      key: "case_number",
+      header: "Case Number",
+      render: (c) => (
+        <span className="font-bold text-[#1F2937] whitespace-nowrap">
+          {c.case_number}
+        </span>
+      ),
+    },
+    {
+      key: "title",
+      header: "Grievance Title",
+      render: (c) => (
+        <div className="max-w-[320px]">
+          <div className="text-[13px] text-[#6B7280]">{c.category}</div>
+          <div className="font-semibold text-[#1F2937] line-clamp-2">{c.title}</div>
+        </div>
+      ),
+    },
+    {
+      key: "bureau_code",
+      header: "Holding Bureau",
+      align: "center",
+      render: (c) => (
+        <span className="inline-block text-[13px] px-2.5 py-0.5 rounded-[8px] bg-white border border-[#D1D5DB] text-[#1F2937]">
+          {c.bureau_code || "Unassigned"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (c) => <StatusBadge status={c.status} />,
+    },
+    {
+      key: "received_date",
+      header: "Lodged Date",
+      render: (c) => (
+        <span className="text-[#6B7280] text-[13px] whitespace-nowrap">
+          {c.received_date ? new Date(c.received_date).toLocaleDateString() : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "expected_disposal_date",
+      header: "Expected Disposal",
+      render: (c) => (
+        <span className="text-[13px] whitespace-nowrap text-[#6B7280]">
+          {c.expected_disposal_date ? new Date(c.expected_disposal_date).toLocaleDateString() : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "action",
+      header: "Action",
+      align: "right",
+      render: (c) => (
+        <Link
+          href={`/cases/${c.id}`}
+          className="font-semibold text-[#C2410C] hover:underline whitespace-nowrap text-[13px]"
+        >
+          View Dossier &rarr;
+        </Link>
+      ),
+    },
+  ];
+
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav />
 
-        <main className="p-6 space-y-6 overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-[#FED7AA]">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/institutions"
-                className="p-1.5 rounded-full hover:bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
+        <main className="p-8 space-y-8 max-w-[1280px] w-full mx-auto overflow-y-auto">
+          {/* 1. Unified PageHeader */}
+          <PageHeader
+            title={inst.name}
+            description={`Permanent ID: ${inst.aicte_permanent_id} • ${inst.region} Region • ${inst.city}, ${inst.state}`}
+            actions={[
+              {
+                label: "Back to Institutions",
+                href: "/institutions",
+                variant: "secondary",
+                icon: <ArrowLeft className="w-4 h-4" />,
+              },
+            ]}
+          />
+
+          {/* 2. KPI / Summary Row: Equal height 96px */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <KpiCard
+              label="Total Cases on Record"
+              value={inst.total_cases}
+              icon={<FolderOpen className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Open / In Process"
+              value={inst.open_cases}
+              alert={inst.open_cases > 0}
+              icon={<Building2 className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Disposed / Resolved"
+              value={inst.disposed_cases}
+              icon={<Landmark className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Accreditation Status"
+              value={inst.status}
+              icon={<MapPin className="w-4 h-4" />}
+            />
+          </div>
+
+          {/* 3. Main Content: Profile Details + Case History */}
+          <div className="space-y-8">
+            <div className="p-[20px] bg-white rounded-[8px] border border-[#FED7AA] grid grid-cols-1 md:grid-cols-4 gap-4 text-[14px]">
               <div>
-                <span className="text-xs font-bold text-[#C2410C] uppercase tracking-wide">
-                  Institution Profile & Cross-Bureau Register
+                <span className="text-[#6B7280] block text-[13px] font-medium">AICTE Permanent ID</span>
+                <span className="font-bold text-[#1F2937] text-[16px]">{inst.aicte_permanent_id}</span>
+              </div>
+              <div>
+                <span className="text-[#6B7280] block text-[13px] font-medium">Campus Location</span>
+                <span className="font-semibold text-[#1F2937]">
+                  {inst.city}, {inst.state} ({inst.region} Region)
                 </span>
-                <h2 className="text-xl font-bold text-[#1F2937]">
-                  {inst.name}
-                </h2>
+                <p className="text-[13px] text-[#6B7280] mt-0.5 m-0 truncate">{inst.address}</p>
               </div>
-            </div>
-
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]">
-              {inst.status}
-            </span>
-          </div>
-
-          {/* Profile Overview Card */}
-          <div className="p-5 bg-white rounded-[8px] border border-[#FED7AA] shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-            <div>
-              <span className="text-[#6B7280] block font-semibold">AICTE Permanent ID</span>
-              <span className="text-base font-bold text-[#1F2937]">{inst.aicte_permanent_id}</span>
-            </div>
-            <div>
-              <span className="text-[#6B7280] block font-semibold">Region & Campus Location</span>
-              <span className="font-semibold text-[#1F2937]">
-                {inst.region} Region • {inst.city}, {inst.state}
-              </span>
-              <p className="text-[11px] text-[#6B7280] mt-0.5">{inst.address}</p>
-            </div>
-            <div>
-              <span className="text-[#6B7280] block font-semibold">Institution Classification</span>
-              <span className="font-semibold text-[#1F2937]">{inst.type || "Technical Institute"}</span>
-            </div>
-            <div>
-              <span className="text-[#6B7280] block font-semibold">Bureaus Handling Active Inquiries</span>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {inst.bureaus_involved.length === 0 ? (
-                  <span className="text-[#6B7280]">No open inquiries</span>
-                ) : (
-                  inst.bureaus_involved.map((bName, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-0.5 rounded bg-[#FFF7ED] border border-[#FED7AA] text-[#C2410C] font-bold text-[10px]"
-                    >
-                      {bName}
-                    </span>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Case Statistics Bar */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-[8px] bg-[#FFF7ED] border border-[#FED7AA]">
-              <span className="text-xs font-bold text-[#6B7280] uppercase">Total Cases on Record</span>
-              <div className="text-2xl font-bold text-[#1F2937] mt-1">{inst.total_cases}</div>
-            </div>
-            <div className="p-4 rounded-[8px] bg-[#FFF7ED] border border-[#FED7AA]">
-              <span className="text-xs font-bold text-[#C2410C] uppercase">Open / Under Process</span>
-              <div className="text-2xl font-bold text-[#C2410C] mt-1">{inst.open_cases}</div>
-            </div>
-            <div className="p-4 rounded-[8px] bg-[#FFF7ED] border border-[#FED7AA]">
-              <span className="text-xs font-bold text-[#6B7280] uppercase">Resolved / Disposed</span>
-              <div className="text-2xl font-bold text-[#1F2937] mt-1">{inst.disposed_cases}</div>
-            </div>
-          </div>
-
-          {/* Consolidated Case History Across Bureaus */}
-          <div className="bg-white rounded-[8px] border border-[#FED7AA] shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-[#FED7AA] bg-[#FFF7ED] flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm text-[#1F2937]">Consolidated Case History Across All Bureaus</h3>
-                <p className="text-xs text-[#6B7280]">Single-window institutional cross-bureau ledger</p>
+                <span className="text-[#6B7280] block text-[13px] font-medium">Classification</span>
+                <span className="font-semibold text-[#1F2937]">{inst.type || "Technical Institute"}</span>
               </div>
-              <span className="text-xs font-bold text-[#C2410C]">
-                {inst.cases.length} Complaints
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs casetrack-table">
-                <thead>
-                  <tr>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Case Number</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Category & Title</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Holding Bureau</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Status</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C]">Lodged Date</th>
-                    <th className="py-2.5 px-3 font-bold text-[#C2410C] text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#FED7AA]">
-                  {inst.cases.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center text-[#6B7280]">
-                        No complaints registered against this institution.
-                      </td>
-                    </tr>
+              <div>
+                <span className="text-[#6B7280] block text-[13px] font-medium">Active Inquiries In</span>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {inst.bureaus_involved.length === 0 ? (
+                    <span className="text-[#6B7280] text-[13px]">No open inquiries</span>
                   ) : (
-                    inst.cases.map((c) => (
-                      <tr key={c.id} className="transition-colors">
-                        <td className="py-2.5 px-3 font-bold text-[#1F2937]">{c.case_number}</td>
-                        <td className="py-2.5 px-3">
-                          <div className="text-[10px] uppercase font-bold text-[#C2410C]">{c.category}</div>
-                          <div className="font-medium text-[#1F2937]">{c.title}</div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className="px-2 py-0.5 rounded bg-[#FFF7ED] border border-[#FED7AA] text-[#9A3412] font-semibold">
-                            {c.bureau_code}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <StatusBadge status={c.status} />
-                        </td>
-                        <td className="py-2.5 px-3 text-[#6B7280]">
-                          {c.received_date ? new Date(c.received_date).toLocaleDateString() : "—"}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <Link
-                            href={`/cases/${c.id}`}
-                            className="inline-flex items-center gap-1 font-bold text-[#C2410C] hover:underline"
-                          >
-                            Dossier <ExternalLink className="w-3.5 h-3.5" />
-                          </Link>
-                        </td>
-                      </tr>
+                    inst.bureaus_involved.map((bName, i) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-0.5 rounded-[8px] bg-white border border-[#D1D5DB] text-[#1F2937] text-[13px]"
+                      >
+                        {bName}
+                      </span>
                     ))
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
+                  Consolidated Case History Across Bureaus
+                </h2>
+                <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 m-0">
+                  Unified cross-bureau grievance registry ({inst.cases.length} records)
+                </p>
+              </div>
+
+              <DataTable
+                columns={caseColumns}
+                data={inst.cases}
+                keyExtractor={(c) => c.id}
+                emptyMessage="No grievances on record for this institution."
+              />
             </div>
           </div>
         </main>

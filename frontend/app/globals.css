@@ -4,7 +4,7 @@
 
 :root {
   --background: #FFFFFF;
-  --surface: #FFF7ED;
+  --surface: #FFFFFF;
   --border: #FED7AA;
   --primary: #F97316;
   --primary-hover: #EA580C;
@@ -15,16 +15,18 @@
 
 html, body {
   font-family: "Times New Roman", Times, serif !important;
-  background-color: var(--background);
-  color: var(--body);
+  background-color: #FFFFFF;
+  color: #1F2937;
   margin: 0;
   padding: 0;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 * {
   font-family: "Times New Roman", Times, serif !important;
   box-sizing: border-box;
+  line-height: 1.5;
 }
 
 /* Accessible focus ring */
@@ -39,7 +41,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #FFF7ED;
+  background: #FFFFFF;
 }
 ::-webkit-scrollbar-thumb {
   background: #FED7AA;
@@ -49,19 +51,47 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   background: #F97316;
 }
 
-/* Sticky table headers and zebra rows */
+/* Global table design: 48px row height, sticky header, zebra #FFF7ED */
+.casetrack-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .casetrack-table th {
   position: sticky;
   top: 0;
   background-color: #FFF7ED;
   z-index: 10;
-  border-bottom: 2px solid #FED7AA;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid #FED7AA;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6B7280;
+  text-align: left;
 }
 
-.casetrack-table tr:nth-child(even) td {
+.casetrack-table td {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 14px;
+  color: #1F2937;
+  border-bottom: 1px solid #FED7AA;
+  vertical-align: middle;
+}
+
+.casetrack-table tbody tr:nth-child(even) td {
   background-color: #FFF7ED;
 }
 
-.casetrack-table tr:hover td {
+.casetrack-table tbody tr:nth-child(odd) td {
+  background-color: #FFFFFF;
+}
+
+.casetrack-table tbody tr:hover td {
   background-color: #FFEDD5 !important;
 }

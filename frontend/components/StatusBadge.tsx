@@ -7,69 +7,48 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, isOverdue = false, className = "" }) => {
-  if (isOverdue || status === "Escalated") {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  isOverdue = false,
+  className = "",
+}) => {
+  const isCritical = isOverdue || status === "Escalated";
+
+  if (isCritical) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-[#C2410C] text-white shadow-sm ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[13px] leading-[1.5] font-semibold rounded-[8px] bg-white border border-[#C2410C] text-[#C2410C] ${className}`}
         role="status"
         aria-label={isOverdue ? `Overdue: ${status}` : status}
       >
-        <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
-        {isOverdue ? "OVERDUE" : "ESCALATED"}
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[#C2410C]" aria-hidden="true" />
+        <span>{isOverdue ? "Overdue" : "Escalated"}</span>
       </span>
     );
   }
 
-  switch (status) {
-    case "Pending":
-      return (
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] ${className}`}
-          role="status"
-        >
-          <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-          Pending
-        </span>
-      );
-    case "Under Process":
-      return (
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#FFEDD5] text-[#9A3412] border border-[#FDBA74] ${className}`}
-          role="status"
-        >
-          <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#EA580C]" aria-hidden="true" style={{ animationDuration: '3s' }} />
-          Under Process
-        </span>
-      );
-    case "Disposed":
-      return (
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#FFF7ED] text-[#1F2937] border border-[#FED7AA] ${className}`}
-          role="status"
-        >
-          <CheckCircle2 className="w-3.5 h-3.5 text-[#C2410C]" aria-hidden="true" />
-          Disposed
-        </span>
-      );
-    case "Transferred":
-      return (
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#FED7AA] text-[#7C2D12] border border-[#FDBA74] ${className}`}
-          role="status"
-        >
-          <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
-          Transferred
-        </span>
-      );
-    default:
-      return (
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] ${className}`}
-          role="status"
-        >
-          {status}
-        </span>
-      );
-  }
+  const renderIcon = () => {
+    switch (status) {
+      case "Pending":
+        return <Clock className="w-3.5 h-3.5 shrink-0 text-[#6B7280]" aria-hidden="true" />;
+      case "Under Process":
+        return <RefreshCw className="w-3.5 h-3.5 shrink-0 text-[#6B7280]" aria-hidden="true" />;
+      case "Disposed":
+        return <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-[#6B7280]" aria-hidden="true" />;
+      case "Transferred":
+        return <ArrowRightLeft className="w-3.5 h-3.5 shrink-0 text-[#6B7280]" aria-hidden="true" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[13px] leading-[1.5] font-normal rounded-[8px] bg-white border border-[#D1D5DB] text-[#1F2937] ${className}`}
+      role="status"
+    >
+      {renderIcon()}
+      <span>{status}</span>
+    </span>
+  );
 };

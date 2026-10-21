@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Landmark, Shield, AlertCircle, ArrowRight } from "lucide-react";
+import { Landmark, AlertCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { apiRequest } from "@/lib/api";
 
@@ -45,28 +45,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF7ED] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex p-3 bg-[#F97316] rounded-xl text-white shadow-md mb-3">
+        <div className="inline-flex p-3 bg-[#C2410C] rounded-[8px] text-white mb-3">
           <Landmark className="w-8 h-8" />
         </div>
-        <span className="block text-xs font-bold tracking-widest uppercase text-[#C2410C]">
-          All India Council for Technical Education
-        </span>
-        <h1 className="text-2xl font-bold tracking-tight text-[#1F2937] mt-1">
+        <h1 className="text-[28px] font-bold text-[#1F2937] leading-[1.5] m-0">
           AICTE CaseTrack
         </h1>
-        <p className="mt-1 text-xs text-[#6B7280]">
+        <p className="mt-1 text-[15px] text-[#6B7280] leading-[1.5] m-0">
           Integrated Institution Complaint Monitoring and Status Dashboard
         </p>
       </div>
 
       {/* Login Card */}
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-md rounded-[8px] border border-[#FED7AA] sm:px-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white p-6 sm:p-8 rounded-[8px] border border-[#FED7AA] space-y-6">
           {error && (
-            <div className="mb-4 p-3 rounded-[6px] bg-[#FFF7ED] border border-[#C2410C] flex items-start gap-2 text-xs text-[#C2410C]">
+            <div className="p-3 rounded-[8px] bg-white border border-[#C2410C] flex items-start gap-2 text-[14px] text-[#C2410C]">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -74,7 +71,7 @@ export default function LoginPage() {
 
           <form className="space-y-4" onSubmit={handleLogin}>
             <div>
-              <label htmlFor="email" className="block text-xs font-bold text-[#1F2937]">
+              <label htmlFor="email" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
                 Official Email Address
               </label>
               <input
@@ -84,12 +81,12 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="officer@aicte.gov.in"
-                className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                className="w-full h-[38px] px-3 text-[14px] bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-bold text-[#1F2937]">
+              <label htmlFor="password" className="block text-[13px] font-semibold text-[#1F2937] mb-1">
                 Password
               </label>
               <input
@@ -99,14 +96,14 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="mt-1 block w-full px-3 py-2 text-sm bg-white border border-[#FED7AA] rounded-[6px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+                className="w-full h-[38px] px-3 text-[14px] bg-white border border-[#FED7AA] rounded-[8px] text-[#1F2937] placeholder-[#6B7280] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] shadow-sm transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-[14px] font-semibold rounded-[8px] bg-[#C2410C] text-white hover:bg-[#EA580C] transition-colors disabled:opacity-50"
             >
               {loading ? "Authenticating..." : "Sign In to CaseTrack"}
               <ArrowRight className="w-4 h-4" />
@@ -114,58 +111,58 @@ export default function LoginPage() {
           </form>
 
           {/* Quick Demo Credentials */}
-          <div className="mt-6 pt-5 border-t border-[#FED7AA]">
-            <span className="block text-[11px] font-bold text-[#C2410C] uppercase tracking-wider mb-2">
-              Quick Select Demo Persona (SIH Evaluation)
+          <div className="pt-4 border-t border-[#FED7AA]">
+            <span className="block text-[13px] font-semibold text-[#1F2937] mb-2.5">
+              Quick Select Demo Persona
             </span>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-[13px]">
               <button
                 type="button"
                 onClick={() => setDemoCredentials("admin@aicte.gov.in", "Admin@123456")}
-                className="p-2 text-left rounded border border-[#FED7AA] bg-[#FFF7ED] hover:bg-[#FFEDD5] transition-colors"
+                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
               >
                 <div className="font-bold text-[#1F2937]">Admin</div>
-                <div className="text-[10px] text-[#6B7280]">Full System Access</div>
+                <div className="text-[12px] text-[#6B7280]">Full System Access</div>
               </button>
               <button
                 type="button"
                 onClick={() => setDemoCredentials("seniormanager@aicte.gov.in", "Senior@123456")}
-                className="p-2 text-left rounded border border-[#FED7AA] bg-[#FFF7ED] hover:bg-[#FFEDD5] transition-colors"
+                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
               >
                 <div className="font-bold text-[#1F2937]">Senior Manager</div>
-                <div className="text-[10px] text-[#6B7280]">Grievance Directorate</div>
+                <div className="text-[12px] text-[#6B7280]">Grievance Directorate</div>
               </button>
               <button
                 type="button"
                 onClick={() => setDemoCredentials("pgrc.officer@aicte.gov.in", "Pgrc@123456")}
-                className="p-2 text-left rounded border border-[#FED7AA] bg-[#FFF7ED] hover:bg-[#FFEDD5] transition-colors"
+                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
               >
                 <div className="font-bold text-[#1F2937]">PGRC Officer</div>
-                <div className="text-[10px] text-[#6B7280]">Public Grievance Cell</div>
+                <div className="text-[12px] text-[#6B7280]">Public Grievance Cell</div>
               </button>
               <button
                 type="button"
                 onClick={() => setDemoCredentials("rb.officer@aicte.gov.in", "Rb@123456")}
-                className="p-2 text-left rounded border border-[#FED7AA] bg-[#FFF7ED] hover:bg-[#FFEDD5] transition-colors"
+                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
               >
                 <div className="font-bold text-[#1F2937]">RB Officer</div>
-                <div className="text-[10px] text-[#6B7280]">Regulation Bureau</div>
+                <div className="text-[12px] text-[#6B7280]">Regulation Bureau</div>
               </button>
             </div>
             <button
               type="button"
               onClick={() => setDemoCredentials("ro.north@aicte.gov.in", "North@123456")}
-              className="mt-2 w-full p-2 text-left rounded border border-[#FED7AA] bg-[#FFF7ED] hover:bg-[#FFEDD5] text-xs transition-colors"
+              className="mt-2 w-full p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] text-[13px] transition-colors"
             >
               <div className="font-bold text-[#1F2937]">Regional Officer (Northern)</div>
-              <div className="text-[10px] text-[#6B7280]">Region-scoped Access (Northern Region)</div>
+              <div className="text-[12px] text-[#6B7280]">Northern Region Jurisdiction</div>
             </button>
           </div>
 
           {/* Registration link */}
-          <div className="mt-4 text-center text-xs text-[#6B7280]">
+          <div className="text-center text-[13px] text-[#6B7280]">
             Don't have an approved account?{" "}
-            <Link href="/register" className="font-bold text-[#C2410C] hover:underline">
+            <Link href="/register" className="font-semibold text-[#C2410C] hover:underline">
               Register New Official
             </Link>
           </div>

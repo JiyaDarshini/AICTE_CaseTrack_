@@ -12,9 +12,30 @@ module.exports = {
         serif: ['"Times New Roman"', 'Times', 'serif'],
         mono: ['"Times New Roman"', 'Times', 'serif'],
       },
+      fontSize: {
+        'page-title': ['28px', { lineHeight: '1.5', fontWeight: '700' }],
+        'section-title': ['18px', { lineHeight: '1.5', fontWeight: '700' }],
+        'body': ['15px', { lineHeight: '1.5' }],
+        'table': ['14px', { lineHeight: '1.5' }],
+        'caption': ['13px', { lineHeight: '1.5' }],
+      },
+      spacing: {
+        '1': '4px',
+        '2': '8px',
+        '3': '12px',
+        '4': '16px',
+        '5': '20px',
+        '6': '24px',
+        '8': '32px',
+        'page': '32px',
+        'section': '32px',
+        'card': '20px',
+        'card-gap': '16px',
+      },
       colors: {
         background: "#FFFFFF",
-        surface: "#FFF7ED",
+        surface: "#FFFFFF",
+        zebra: "#FFF7ED",
         border: "#FED7AA",
         primary: {
           DEFAULT: "#F97316",
@@ -23,6 +44,11 @@ module.exports = {
         },
         body: "#1F2937",
         muted: "#6B7280",
+        chip: {
+          bg: "#FFFFFF",
+          border: "#D1D5DB",
+          text: "#1F2937",
+        },
         orangeScale: {
           50: "#FFF7ED",
           100: "#FFEDD5",
@@ -37,7 +63,14 @@ module.exports = {
         }
       },
       borderRadius: {
+        DEFAULT: "8px",
+        sm: "8px",
+        md: "8px",
+        lg: "8px",
         card: "8px",
+      },
+      boxShadow: {
+        none: "none",
       }
     },
   },

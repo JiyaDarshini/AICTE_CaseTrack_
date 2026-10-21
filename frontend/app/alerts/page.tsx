@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { TopNav } from "@/components/TopNav";
+import { PageHeader } from "@/components/PageHeader";
+import { KpiCard } from "@/components/KpiCard";
+import { AlertStrip } from "@/components/AlertStrip";
+import { EmptyState } from "@/components/EmptyState";
 import { apiRequest } from "@/lib/api";
 import { Notification } from "@/lib/types";
 import {
@@ -23,8 +27,8 @@ export default function AlertsPage() {
     try {
       const data = await apiRequest<Notification[]>(`/notifications?unread_only=${unreadOnly}`);
       setNotifications(data || []);
-    } catch (_) {}
-    finally {
+    } catch (_) {
+    } finally {
       setLoading(false);
     }
   };
@@ -39,8 +43,8 @@ export default function AlertsPage() {
       const res = await apiRequest("/alerts/sla");
       setScanResult(res.results);
       fetchNotifications();
-    } catch (_) {}
-    finally {
+    } catch (_) {
+    } finally {
       setScanning(false);
     }
   };
@@ -54,133 +58,160 @@ export default function AlertsPage() {
     } catch (_) {}
   };
 
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const escalationCount = notifications.filter((n) => n.type === "ESCALATION").length;
+  const breachCount = notifications.filter((n) => n.type === "SLA_BREACH").length;
+
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav />
 
-        <main className="p-6 space-y-6 overflow-y-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#FED7AA] gap-2">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#C2410C]">
-                SLA Compliance & Automated Warning Engine
-              </span>
-              <h2 className="text-xl font-bold text-[#1F2937]">
-                Regulatory Alerts & Notifications
-              </h2>
-            </div>
+        <main className="p-8 space-y-8 max-w-[1280px] w-full mx-auto overflow-y-auto">
+          {/* 1. Unified PageHeader */}
+          <PageHeader
+            title="Regulatory Alerts & Notifications"
+            description="Automated SLA breach detection, escalation triggers, and compliance alerts."
+            actions={[
+              {
+                label: scanning ? "Scanning SLA..." : "Run Real-Time SLA Scan",
+                onClick: triggerScan,
+                icon: <RefreshCw className={`w-4 h-4 ${scanning ? "animate-spin" : ""}`} />,
+              },
+            ]}
+          />
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={triggerScan}
-                disabled={scanning}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-[6px] bg-[#C2410C] text-white hover:bg-[#EA580C] shadow-sm transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${scanning ? "animate-spin" : ""}`} />
-                {scanning ? "Scanning SLA Dates..." : "Run Real-Time SLA Scan"}
-              </button>
-            </div>
-          </div>
-
-          {/* Scan Result Banner */}
+          {/* 2. Compact Alert Strip (Max 1 per page) */}
           {scanResult && (
-            <div className="p-4 bg-[#FFF7ED] rounded-[8px] border border-[#F97316] text-xs space-y-1">
-              <div className="font-bold text-[#C2410C]">SLA Scan Complete</div>
-              <div className="text-[#1F2937]">
-                Identified: <strong>{scanResult.warnings}</strong> approaching deadline warning(s), <strong>{scanResult.breaches}</strong> overdue breach(es), and <strong>{scanResult.escalations}</strong> auto-escalation(s) to Senior Management.
-              </div>
-            </div>
+            <AlertStrip
+              title="Real-Time SLA Scan Complete"
+              description={`Identified ${scanResult.warnings} approaching deadline warning(s), ${scanResult.breaches} overdue breach(es), and ${scanResult.escalations} auto-escalation(s).`}
+              onDismiss={() => setScanResult(null)}
+            />
           )}
 
-          {/* Notifications List Card */}
-          <div className="bg-white rounded-[8px] border border-[#FED7AA] shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-[#FED7AA] bg-[#FFF7ED] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BellRing className="w-4 h-4 text-[#C2410C]" />
-                <h3 className="font-bold text-sm text-[#1F2937]">Alert Feed</h3>
+          {/* 3. KPI / Summary Row: Equal height 96px */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <KpiCard
+              label="Total Notifications"
+              value={notifications.length}
+              icon={<BellRing className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Unread Alerts"
+              value={unreadCount}
+              alert={unreadCount > 0}
+              icon={<Clock className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="Escalations"
+              value={escalationCount}
+              alert={escalationCount > 0}
+              icon={<ShieldAlert className="w-4 h-4" />}
+            />
+            <KpiCard
+              label="SLA Breaches"
+              value={breachCount}
+              alert={breachCount > 0}
+              icon={<AlertTriangle className="w-4 h-4" />}
+            />
+          </div>
+
+          {/* 4. Main Content: Notifications Feed Card */}
+          <div className="bg-white rounded-[8px] border border-[#FED7AA] p-[20px] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#FED7AA] pb-4">
+              <div>
+                <h2 className="text-[18px] font-bold text-[#1F2937] leading-[1.5] m-0">
+                  Compliance & Alert Feed
+                </h2>
+                <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 m-0">
+                  Real-time regulatory events, approaching deadlines, and reminders
+                </p>
               </div>
 
-              <label className="flex items-center gap-2 text-xs font-semibold text-[#1F2937] cursor-pointer">
+              <label className="flex items-center gap-2 text-[14px] font-semibold text-[#1F2937] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={unreadOnly}
                   onChange={(e) => setUnreadOnly(e.target.checked)}
                   className="rounded border-[#FED7AA] text-[#C2410C] focus:ring-[#F97316]"
                 />
-                Unread alerts only
+                <span>Unread alerts only</span>
               </label>
             </div>
 
-            <div className="divide-y divide-[#FED7AA]/60">
-              {loading ? (
-                <div className="p-8 text-center text-[#6B7280]">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#C2410C] border-t-transparent rounded-full animate-spin" />
-                    <span>Loading alerts...</span>
-                  </div>
+            {loading ? (
+              <div className="p-8 text-center text-[#6B7280]">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-[#C2410C] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[14px]">Loading notifications...</span>
                 </div>
-              ) : notifications.length === 0 ? (
-                <div className="p-8 text-center text-xs text-[#6B7280]">
-                  No notifications found matching filter.
-                </div>
-              ) : (
-                notifications.map((n) => (
+              </div>
+            ) : notifications.length === 0 ? (
+              <EmptyState
+                title="No alerts found"
+                description={unreadOnly ? "No unread notifications at this time." : "No regulatory notifications on record."}
+              />
+            ) : (
+              <div className="divide-y divide-[#FED7AA]">
+                {notifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                      !n.is_read ? "bg-[#FFF7ED]/50" : "bg-white"
-                    }`}
+                    className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[14px]"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="p-1.5 rounded-full bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] shrink-0 mt-0.5">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="p-1.5 rounded-[8px] bg-white border border-[#D1D5DB] text-[#1F2937] shrink-0 mt-0.5">
                         {n.type === "ESCALATION" ? (
-                          <ShieldAlert className="w-4 h-4" />
+                          <ShieldAlert className="w-4 h-4 text-[#C2410C]" />
                         ) : n.type === "SLA_BREACH" ? (
-                          <AlertTriangle className="w-4 h-4" />
+                          <AlertTriangle className="w-4 h-4 text-[#C2410C]" />
                         ) : (
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-4 h-4 text-[#6B7280]" />
                         )}
                       </div>
-                      <div>
+
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-xs text-[#1F2937]">{n.title}</h4>
+                          <span className={`font-bold ${!n.is_read ? "text-[#1F2937]" : "text-[#6B7280]"}`}>
+                            {n.title}
+                          </span>
                           {!n.is_read && (
                             <span className="w-2 h-2 rounded-full bg-[#C2410C]" />
                           )}
                         </div>
-                        <p className="text-xs text-[#6B7280] mt-0.5 leading-relaxed">
-                          {n.body}
+                        <p className="text-[13px] text-[#6B7280] leading-[1.5] mt-0.5 m-0 line-clamp-2">
+                          {n.message || n.body}
                         </p>
-                        <span className="text-[10px] text-[#9A3412] mt-1 block">
+                        <span className="text-[12px] text-[#6B7280] block mt-1">
                           {new Date(n.created_at).toLocaleString()}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      {n.case_id && (
-                        <Link
-                          href={`/cases/${n.case_id}`}
-                          className="px-2.5 py-1 text-xs font-bold rounded bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] hover:bg-[#FFEDD5]"
-                        >
-                          View Case
-                        </Link>
-                      )}
+                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
                       {!n.is_read && (
                         <button
                           onClick={() => markRead(n.id)}
-                          className="px-2.5 py-1 text-xs font-semibold text-[#6B7280] hover:text-[#1F2937] border border-[#FED7AA] rounded bg-white hover:bg-[#FFF7ED]"
+                          className="text-[13px] font-semibold text-[#6B7280] hover:text-[#1F2937] hover:underline"
                         >
-                          Mark Read
+                          Mark as read
                         </button>
+                      )}
+                      {n.case_id && (
+                        <Link
+                          href={`/cases/${n.case_id}`}
+                          className="font-semibold text-[#C2410C] hover:underline text-[13px] inline-flex items-center gap-1"
+                        >
+                          <span>View Case</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
                       )}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>

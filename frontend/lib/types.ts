@@ -182,7 +182,8 @@ export interface Notification {
   id: string;
   type: string;
   title: string;
-  body: string;
+  body?: string;
+  message?: string;
   case_id?: string | null;
   is_read: boolean;
   created_at: string;
