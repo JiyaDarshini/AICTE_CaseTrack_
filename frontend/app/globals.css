@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #FFFFFF;
+  --surface: #FFF7ED;
+  --border: #FED7AA;
+  --primary: #F97316;
+  --primary-hover: #EA580C;
+  --primary-dark: #C2410C;
+  --body: #1F2937;
+  --muted: #6B7280;
+}
+
+html, body {
+  font-family: "Times New Roman", Times, serif !important;
+  background-color: var(--background);
+  color: var(--body);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  font-family: "Times New Roman", Times, serif !important;
+  box-sizing: border-box;
+}
+
+/* Accessible focus ring */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #F97316 !important;
+  outline-offset: 2px !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FFF7ED;
+}
+::-webkit-scrollbar-thumb {
+  background: #FED7AA;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #F97316;
+}
+
+/* Sticky table headers and zebra rows */
+.casetrack-table th {
+  position: sticky;
+  top: 0;
+  background-color: #FFF7ED;
+  z-index: 10;
+  border-bottom: 2px solid #FED7AA;
+}
+
+.casetrack-table tr:nth-child(even) td {
+  background-color: #FFF7ED;
+}
+
+.casetrack-table tr:hover td {
+  background-color: #FFEDD5 !important;
+}
