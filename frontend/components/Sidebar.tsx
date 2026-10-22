@@ -68,10 +68,10 @@ export const Sidebar: React.FC = () => {
   }
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-[#FED7AA] flex flex-col justify-between shrink-0">
-      <div>
+    <aside className="w-64 h-screen sticky top-0 bg-white border-r border-[#FED7AA] flex flex-col justify-between shrink-0 z-30 select-none">
+      <div className="flex flex-col min-h-0 flex-1">
         {/* Brand: "AICTE CaseTrack" only */}
-        <div className="h-16 px-6 border-b border-[#FED7AA] flex items-center gap-3">
+        <div className="h-16 px-6 border-b border-[#FED7AA] flex items-center gap-3 shrink-0">
           <div className="p-1.5 bg-[#C2410C] rounded-[8px] text-white shrink-0">
             <Landmark className="w-5 h-5" />
           </div>
@@ -81,7 +81,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-3 space-y-1">
+        <nav className="p-3 space-y-1 overflow-y-auto flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
@@ -103,16 +103,16 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Footer / Logout */}
-      <div className="p-4 border-t border-[#FED7AA]">
+      {/* Footer / Logout - Static and permanently pinned at bottom-left */}
+      <div className="p-4 border-t border-[#FED7AA] shrink-0 bg-white">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-semibold text-[#1F2937] bg-white hover:bg-[#FFF7ED] border border-[#FED7AA] rounded-[8px] transition-colors leading-[1.5]"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-semibold text-[#C2410C] hover:text-white bg-[#FFF7ED] hover:bg-[#C2410C] border border-[#FED7AA] rounded-[8px] transition-colors leading-[1.5] cursor-pointer shadow-sm"
         >
-          <LogOut className="w-3.5 h-3.5 text-[#6B7280]" />
+          <LogOut className="w-4 h-4 shrink-0" />
           <span>Sign Out</span>
         </button>
-        <p className="mt-2 text-[13px] text-center text-[#6B7280] leading-[1.5] m-0">
+        <p className="mt-2 text-[12px] text-center text-[#6B7280] leading-[1.5] m-0">
           SIH 2026 • PS SIH26264
         </p>
       </div>
