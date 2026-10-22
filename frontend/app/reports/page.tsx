@@ -9,7 +9,7 @@ import { DataTable, Column } from "@/components/DataTable";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest } from "@/lib/api";
 import {
-  FileBarChart2, Download, FileSpreadsheet, FileText,
+  FileBarChart2, FileSpreadsheet, FileText, Download,
   RefreshCw, CheckCircle2
 } from "lucide-react";
 
@@ -105,7 +105,7 @@ export default function ReportsPage() {
           />
 
           {/* 2. KPI / Summary Row: Equal height 96px */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KpiCard
               label="Selected Report"
               value={activeReportObj?.label || "Report"}
@@ -115,11 +115,6 @@ export default function ReportsPage() {
               label="Compiled Records"
               value={reportData?.data?.length || 0}
               icon={<CheckCircle2 className="w-4 h-4" />}
-            />
-            <KpiCard
-              label="Available Formats"
-              value="PDF, XLSX, CSV"
-              icon={<Download className="w-4 h-4" />}
             />
             <KpiCard
               label="Export Engine"
