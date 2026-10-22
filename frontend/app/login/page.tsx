@@ -38,12 +38,6 @@ export default function LoginPage() {
     }
   };
 
-  const setDemoCredentials = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
-  };
-
   return (
     <div
       className="relative min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat bg-fixed"
@@ -116,55 +110,6 @@ export default function LoginPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Credentials */}
-          <div className="pt-4 border-t border-[#FED7AA]">
-            <span className="block text-[13px] font-semibold text-[#1F2937] mb-2.5">
-              Quick Select Demo Persona
-            </span>
-            <div className="grid grid-cols-2 gap-2 text-[13px]">
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("admin@aicte.gov.in", "Admin@123456")}
-                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
-              >
-                <div className="font-bold text-[#1F2937]">Admin</div>
-                <div className="text-[12px] text-[#6B7280]">Full System Access</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("seniormanager@aicte.gov.in", "Senior@123456")}
-                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
-              >
-                <div className="font-bold text-[#1F2937]">Senior Manager</div>
-                <div className="text-[12px] text-[#6B7280]">Grievance Directorate</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("pgrc.officer@aicte.gov.in", "Pgrc@123456")}
-                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
-              >
-                <div className="font-bold text-[#1F2937]">PGRC Officer</div>
-                <div className="text-[12px] text-[#6B7280]">Public Grievance Cell</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDemoCredentials("rb.officer@aicte.gov.in", "Rb@123456")}
-                className="p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] transition-colors"
-              >
-                <div className="font-bold text-[#1F2937]">RB Officer</div>
-                <div className="text-[12px] text-[#6B7280]">Regulation Bureau</div>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDemoCredentials("ro.north@aicte.gov.in", "North@123456")}
-              className="mt-2 w-full p-2.5 text-left rounded-[8px] border border-[#FED7AA] bg-white hover:bg-[#FFF7ED] text-[13px] transition-colors"
-            >
-              <div className="font-bold text-[#1F2937]">Regional Officer (Northern)</div>
-              <div className="text-[12px] text-[#6B7280]">Northern Region Jurisdiction</div>
-            </button>
-          </div>
 
           {/* Registration link */}
           <div className="text-center text-[13px] text-[#6B7280]">
