@@ -44,9 +44,13 @@ async def list_cases(
         .where(Case.is_deleted == False)
     )
 
-    # RBAC: Regional Office can ONLY see cases from their own region
+    # RBAC Scoping:
     if current_user.role == "Regional Office" and current_user.region:
         query = query.where(Institution.region == current_user.region)
+    elif current_user.role == "PGRC":
+        query = query.where(BureauCell.code == "PGRC")
+    elif current_user.role == "RB":
+        query = query.where(BureauCell.code == "RB")
 
     # Search filters
     if institution_name:
@@ -267,6 +271,10 @@ async def get_case_detail(id: UUID, current_user: User = Depends(get_current_use
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied for cases outside your assigned region.")
 
     bureau = await db.get(BureauCell, case.current_bureau_id) if case.current_bureau_id else None
+    if current_user.role == "PGRC" and (not bureau or bureau.code != "PGRC"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: PGRC officers can only view cases within PGRC cell.")
+    if current_user.role == "RB" and (not bureau or bureau.code != "RB"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: RB officers can only view cases within Regulation Bureau.")
     officer = await db.get(User, case.assigned_officer_id) if case.assigned_officer_id else None
 
     # Fetch chronological timeline actions
@@ -380,15 +388,14 @@ async def update_case_status(
     if not case or case.is_deleted:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # RBAC check: PGRC own cell, RB own bureau, Regional Office own region
-    if current_user.role == "PGRC" and case.current_bureau_id != current_user.bureau_cell_id:
+    # RBAC check: PGRC own cell only, RB own bureau only, Regional Office cannot update status
+    bureau = await db.get(BureauCell, case.current_bureau_id) if case.current_bureau_id else None
+    if current_user.role == "PGRC" and (not bureau or bureau.code != "PGRC"):
         raise HTTPException(status_code=403, detail="PGRC officers can only update cases in their own cell.")
-    if current_user.role == "RB" and case.current_bureau_id != current_user.bureau_cell_id:
+    if current_user.role == "RB" and (not bureau or bureau.code != "RB"):
         raise HTTPException(status_code=403, detail="RB officers can only update cases in their own bureau.")
     if current_user.role == "Regional Office":
-        inst = await db.get(Institution, case.institution_id)
-        if not inst or inst.region != current_user.region:
-            raise HTTPException(status_code=403, detail="Regional officers can only update cases in their region.")
+        raise HTTPException(status_code=403, detail="Regional officers cannot update case status directly.")
 
     old_status = case.status
     case.status = req.status
@@ -432,6 +439,14 @@ async def add_case_action(
     if not case or case.is_deleted:
         raise HTTPException(status_code=404, detail="Case not found")
 
+    bureau = await db.get(BureauCell, case.current_bureau_id) if case.current_bureau_id else None
+    if current_user.role == "PGRC" and (not bureau or bureau.code != "PGRC"):
+        raise HTTPException(status_code=403, detail="PGRC officers can only add actions to cases in their own cell.")
+    if current_user.role == "RB" and (not bureau or bureau.code != "RB"):
+        raise HTTPException(status_code=403, detail="RB officers can only add actions to cases in their own bureau.")
+    if current_user.role == "Regional Office":
+        raise HTTPException(status_code=403, detail="Regional officers cannot add case actions.")
+
     action = CaseAction(
         case_id=case.id,
         bureau_id=case.current_bureau_id,
@@ -459,6 +474,12 @@ async def transfer_case(
     case = await db.get(Case, id)
     if not case or case.is_deleted:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    bureau = await db.get(BureauCell, case.current_bureau_id) if case.current_bureau_id else None
+    if current_user.role == "PGRC" and (not bureau or bureau.code != "PGRC"):
+        raise HTTPException(status_code=403, detail="PGRC officers can only transfer cases from their own cell.")
+    if current_user.role == "RB" and (not bureau or bureau.code != "RB"):
+        raise HTTPException(status_code=403, detail="RB officers can only transfer cases from their own bureau.")
 
     target_bureau_res = await db.execute(select(BureauCell).where(BureauCell.code == req.to_bureau_code.upper()))
     target_bureau = target_bureau_res.scalar_one_or_none()
@@ -509,6 +530,15 @@ async def escalate_case(
     case = await db.get(Case, id)
     if not case or case.is_deleted:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    bureau = await db.get(BureauCell, case.current_bureau_id) if case.current_bureau_id else None
+    inst = await db.get(Institution, case.institution_id)
+    if current_user.role == "PGRC" and (not bureau or bureau.code != "PGRC"):
+        raise HTTPException(status_code=403, detail="PGRC officers can only escalate cases in their own cell.")
+    if current_user.role == "RB" and (not bureau or bureau.code != "RB"):
+        raise HTTPException(status_code=403, detail="RB officers can only escalate cases in their own bureau.")
+    if current_user.role == "Regional Office" and current_user.region and inst.region != current_user.region:
+        raise HTTPException(status_code=403, detail="Regional officers can only escalate cases in their own region.")
 
     old_status = case.status
     case.status = "Escalated"

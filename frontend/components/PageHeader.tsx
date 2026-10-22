@@ -11,12 +11,14 @@ export interface PageHeaderAction {
 interface PageHeaderProps {
   title: string;
   description: string;
+  badge?: string;
   actions?: PageHeaderAction[];
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   description,
+  badge,
   actions = [],
 }) => {
   // Enforce max 2 action buttons
@@ -25,9 +27,16 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-[#FED7AA] gap-4">
       <div>
-        <h1 className="text-[28px] font-bold text-[#1F2937] leading-[1.5] m-0">
-          {title}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-[28px] font-bold text-[#1F2937] leading-[1.5] m-0">
+            {title}
+          </h1>
+          {badge && (
+            <span className="px-2.5 py-0.5 text-[12px] font-bold bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] rounded-[8px]">
+              {badge}
+            </span>
+          )}
+        </div>
         <p className="text-[15px] text-[#6B7280] leading-[1.5] mt-1 m-0">
           {description}
         </p>

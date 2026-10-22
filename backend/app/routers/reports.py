@@ -34,7 +34,13 @@ async def get_report(
     if report_type == "bureau":
         title = "Bureau-Wise Workload & Pendency Report"
         headers = ["Bureau Code", "Bureau Name", "Total Cases", "Pending", "Under Process", "Disposed", "Transferred", "Escalated", "Overdue"]
-        bureaus = (await db.execute(select(BureauCell).order_by(BureauCell.code))).scalars().all()
+        bureaus_res = await db.execute(select(BureauCell).order_by(BureauCell.code))
+        bureaus = bureaus_res.scalars().all()
+        if current_user.role == "PGRC":
+            bureaus = [b for b in bureaus if b.code == "PGRC"]
+        elif current_user.role == "RB":
+            bureaus = [b for b in bureaus if b.code == "RB"]
+
         for b in bureaus:
             q = (
                 select(
@@ -76,8 +82,12 @@ async def get_report(
                     func.count(case((and_(Case.expected_disposal_date < now, Case.status != "Disposed"), 1))).label("overdue")
                 )
                 .join(Institution, Case.institution_id == Institution.id)
+                .outerjoin(BureauCell, Case.current_bureau_id == BureauCell.id)
                 .where(Institution.region == reg, Case.is_deleted == False)
             )
+            if current_user.role in ["PGRC", "RB"]:
+                cq = cq.where(BureauCell.code == current_user.role)
+
             cr = (await db.execute(cq)).one()
             ov_cnt = (await db.execute(
                 select(func.count(OverlapGroup.id)).join(Institution, OverlapGroup.institution_id == Institution.id).where(Institution.region == reg, OverlapGroup.status == "Open")
@@ -91,6 +101,12 @@ async def get_report(
     elif report_type == "institution":
         title = "Institution-Wise Grievance Compliance Report"
         headers = ["AICTE Permanent ID", "Institution Name", "Region", "Total Cases", "Open Cases", "Disposed Cases", "Active Overlaps"]
+        
+        case_filters = [Case.is_deleted == False]
+        if current_user.role in ["PGRC", "RB"]:
+            subq = select(BureauCell.id).where(BureauCell.code == current_user.role)
+            case_filters.append(Case.current_bureau_id.in_(subq))
+
         q = (
             select(
                 Institution.id,
@@ -101,14 +117,18 @@ async def get_report(
                 func.count(case((Case.status != "Disposed", 1))).label("open_cases"),
                 func.count(case((Case.status == "Disposed", 1))).label("disposed_cases")
             )
-            .outerjoin(Case, and_(Institution.id == Case.institution_id, Case.is_deleted == False))
+            .outerjoin(Case, and_(Institution.id == Case.institution_id, *case_filters))
             .where(Institution.is_deleted == False)
-            .group_by(Institution.id, Institution.aicte_permanent_id, Institution.name, Institution.region)
-            .order_by(desc("open_cases"))
-            .limit(100)
         )
         if current_user.role == "Regional Office" and current_user.region:
             q = q.where(Institution.region == current_user.region)
+        elif current_user.role in ["PGRC", "RB"]:
+            q = q.group_by(Institution.id, Institution.aicte_permanent_id, Institution.name, Institution.region).having(func.count(Case.id) > 0)
+        
+        if current_user.role not in ["PGRC", "RB"]:
+            q = q.group_by(Institution.id, Institution.aicte_permanent_id, Institution.name, Institution.region)
+
+        q = q.order_by(desc("open_cases")).limit(100)
 
         for inst in (await db.execute(q)).all():
             ov_c = (await db.execute(select(func.count(OverlapGroup.id)).where(OverlapGroup.institution_id == inst.id, OverlapGroup.status == "Open"))).scalar_one_or_none() or 0
@@ -123,10 +143,19 @@ async def get_report(
         q = (
             select(OverlapGroup, Institution)
             .join(Institution, OverlapGroup.institution_id == Institution.id)
-            .order_by(desc(OverlapGroup.score))
         )
         if current_user.role == "Regional Office" and current_user.region:
             q = q.where(Institution.region == current_user.region)
+        elif current_user.role in ["PGRC", "RB"]:
+            ov_subq = (
+                select(OverlapMember.group_id)
+                .join(Case, OverlapMember.case_id == Case.id)
+                .join(BureauCell, Case.current_bureau_id == BureauCell.id)
+                .where(BureauCell.code == current_user.role)
+            )
+            q = q.where(OverlapGroup.id.in_(ov_subq))
+
+        q = q.order_by(desc(OverlapGroup.score))
 
         for og, inst in (await db.execute(q)).all():
             rules_str = ", ".join(og.rules_fired) if og.rules_fired else "Exact Match"
@@ -138,10 +167,20 @@ async def get_report(
     elif report_type == "ageing":
         title = "Case Ageing and Pendency Bracket Analysis"
         headers = ["Ageing Bracket", "Open Cases Count", "Percentage of Total Pendency"]
-        # reuse ageing counts
-        cases = (await db.execute(
-            select(Case.received_date).join(Institution, Case.institution_id == Institution.id).where(Case.status != "Disposed", Case.is_deleted == False)
-        )).scalars().all()
+        cases_q = (
+            select(Case.received_date)
+            .join(Institution, Case.institution_id == Institution.id)
+            .outerjoin(BureauCell, Case.current_bureau_id == BureauCell.id)
+            .where(Case.status != "Disposed", Case.is_deleted == False)
+        )
+        if current_user.role == "PGRC":
+            cases_q = cases_q.where(BureauCell.code == "PGRC")
+        elif current_user.role == "RB":
+            cases_q = cases_q.where(BureauCell.code == "RB")
+        elif current_user.role == "Regional Office" and current_user.region:
+            cases_q = cases_q.where(Institution.region == current_user.region)
+
+        cases = (await db.execute(cases_q)).scalars().all()
         b_counts = {"0–30 Days": 0, "31–60 Days": 0, "61–90 Days": 0, "90+ Days": 0}
         total_open = len(cases)
         for d in cases:
@@ -161,7 +200,20 @@ async def get_report(
     else:
         title = f"{report_type.title()} Performance Evaluation Report"
         headers = ["Period / Metric", "Received Cases", "Disposed Cases", "Pending Clearance Rate", "Overdue Incidents"]
-        cases = (await db.execute(select(Case).join(Institution, Case.institution_id == Institution.id).where(Case.is_deleted == False))).scalars().all()
+        cases_q = (
+            select(Case)
+            .join(Institution, Case.institution_id == Institution.id)
+            .outerjoin(BureauCell, Case.current_bureau_id == BureauCell.id)
+            .where(Case.is_deleted == False)
+        )
+        if current_user.role == "PGRC":
+            cases_q = cases_q.where(BureauCell.code == "PGRC")
+        elif current_user.role == "RB":
+            cases_q = cases_q.where(BureauCell.code == "RB")
+        elif current_user.role == "Regional Office" and current_user.region:
+            cases_q = cases_q.where(Institution.region == current_user.region)
+
+        cases = (await db.execute(cases_q)).scalars().all()
         rec_cnt = len(cases)
         disp_cnt = sum(1 for c in cases if c.status == "Disposed")
         overdue_cnt = sum(1 for c in cases if c.expected_disposal_date and c.expected_disposal_date < now and c.status != "Disposed")

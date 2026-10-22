@@ -306,6 +306,11 @@ class DashboardSummaryResponse(BaseModel):
     overdue_cases: int
     active_overlaps: int
     sla_compliance_rate: float
+    due_in_5_days: int = 0
+    disposed_this_month: int = 0
+    disposal_rate: float = 0.0
+    avg_days_to_dispose: float = 0.0
+    escalated_by_me: int = 0
 
 
 class AgeingBucket(BaseModel):

@@ -175,9 +175,9 @@ export const TopNav: React.FC = () => {
                 <span className="px-2 py-0.5 text-[11px] font-medium rounded-[8px] bg-white border border-[#D1D5DB] text-[#1F2937] leading-none">
                   {user.role}
                 </span>
-                {user.region && (
-                  <span className="text-[12px] text-[#6B7280] hidden md:inline">
-                    • {user.region}
+                {(user.region || (user.role === "PGRC" ? "PGRC Cell" : user.role === "RB" ? "Regulation Bureau" : null)) && (
+                  <span className="px-2 py-0.5 text-[11px] font-semibold rounded-[8px] bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA] leading-none">
+                    {user.region ? `${user.region} Region` : (user.role === "PGRC" ? "PGRC Cell" : "Regulation Bureau")}
                   </span>
                 )}
               </div>

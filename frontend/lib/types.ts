@@ -149,6 +149,11 @@ export interface DashboardSummary {
   overdue_cases: number;
   active_overlaps: number;
   sla_compliance_rate: number;
+  due_in_5_days?: number;
+  disposed_this_month?: number;
+  disposal_rate?: number;
+  avg_days_to_dispose?: number;
+  escalated_by_me?: number;
 }
 
 export interface BureauWorkload {

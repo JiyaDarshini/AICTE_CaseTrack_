@@ -36,7 +36,7 @@ export const Sidebar: React.FC = () => {
     window.location.href = "/login";
   };
 
-  const navItems = [
+  let navItems = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Cases & Complaints", href: "/cases", icon: FolderOpen },
     { label: "Institutions Directory", href: "/institutions", icon: Building2 },
@@ -46,8 +46,25 @@ export const Sidebar: React.FC = () => {
     { label: "Reports & Analytics", href: "/reports", icon: FileBarChart2 },
   ];
 
-  if (user?.role === "Admin" || user?.role === "Senior Manager") {
+  if (user?.role === "Admin") {
     navItems.push({ label: "Admin & Settings", href: "/admin", icon: ShieldCheck });
+  } else if (user?.role === "Regional Office") {
+    navItems = [
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Cases & Complaints", href: "/cases", icon: FolderOpen },
+      { label: "Institutions Directory", href: "/institutions", icon: Building2 },
+      { label: "SLA Alerts & Reminders", href: "/alerts", icon: BellRing },
+      { label: "Reports & Analytics", href: "/reports", icon: FileBarChart2 },
+    ];
+  } else if (user?.role === "Senior Manager" || user?.role === "PGRC" || user?.role === "RB") {
+    navItems = [
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Cases & Complaints", href: "/cases", icon: FolderOpen },
+      { label: "Institutions Directory", href: "/institutions", icon: Building2 },
+      { label: "Overlap Coordination", href: "/overlaps", icon: GitCompare },
+      { label: "SLA Alerts & Reminders", href: "/alerts", icon: BellRing },
+      { label: "Reports & Analytics", href: "/reports", icon: FileBarChart2 },
+    ];
   }
 
   return (
