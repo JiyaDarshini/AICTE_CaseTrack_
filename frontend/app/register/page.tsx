@@ -43,21 +43,28 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex p-3 bg-[#C2410C] rounded-[8px] text-white mb-3">
-          <Landmark className="w-8 h-8" />
-        </div>
-        <h1 className="text-[28px] font-bold text-[#1F2937] leading-[1.5] m-0">
-          Official Account Registration
-        </h1>
-        <p className="mt-1 text-[15px] text-[#6B7280] leading-[1.5] m-0">
-          Account applications are reviewed and activated by System Administrators
-        </p>
-      </div>
+    <div
+      className="relative min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat bg-fixed"
+      style={{ backgroundImage: "url('/aicte-bg.jpg')" }}
+    >
+      {/* Dark gradient overlay for optimal readability, contrast & scenic balance */}
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] pointer-events-none" />
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white p-6 sm:p-8 rounded-[8px] border border-[#FED7AA] space-y-6">
+      <div className="relative z-10 w-full">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+          <div className="inline-flex p-3 bg-[#C2410C] rounded-[10px] text-white mb-3 shadow-lg ring-2 ring-white/30">
+            <Landmark className="w-8 h-8" />
+          </div>
+          <h1 className="text-[30px] font-bold text-white tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-[1.3] m-0">
+            Official Account Registration
+          </h1>
+          <p className="mt-1.5 text-[15px] font-medium text-white/95 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] leading-[1.4] m-0">
+            Account applications are reviewed and activated by System Administrators
+          </p>
+        </div>
+
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white/95 backdrop-blur-md p-6 sm:p-8 rounded-[12px] border border-[#FED7AA] shadow-[0_20px_50px_rgba(0,0,0,0.35)] space-y-6">
           {success ? (
             <div className="text-center py-4 space-y-4">
               <div className="w-12 h-12 mx-auto rounded-full bg-white border border-[#FED7AA] text-[#C2410C] flex items-center justify-center">
@@ -193,5 +200,6 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

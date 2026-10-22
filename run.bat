@@ -5,7 +5,7 @@ echo      Integrated Institution Complaint & Overlap Monitoring Dashboard
 echo =====================================================================
 
 echo Starting FastAPI Backend on port 8000...
-start "AICTE CaseTrack Backend" cmd /k "cd backend && uvicorn app.main:app --reload --port 8000"
+start "AICTE CaseTrack Backend" cmd /k "cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 timeout /t 3 /nobreak >nul
 

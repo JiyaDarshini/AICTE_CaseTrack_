@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models import Case, Institution, BureauCell, OverlapGroup, User
 from app.services.auth_service import get_current_user
 from app.services.report_service import generate_csv_report, generate_xlsx_report, generate_pdf_report
+from app.cache import ensure_utc
 
 router = APIRouter(prefix="/reports", tags=["Reports & Analytics"])
 
@@ -184,8 +185,9 @@ async def get_report(
         b_counts = {"0–30 Days": 0, "31–60 Days": 0, "61–90 Days": 0, "90+ Days": 0}
         total_open = len(cases)
         for d in cases:
-            if d:
-                diff = (now - d).days
+            d_utc = ensure_utc(d)
+            if d_utc:
+                diff = (now - d_utc).days
                 if diff <= 30: b_counts["0–30 Days"] += 1
                 elif diff <= 60: b_counts["31–60 Days"] += 1
                 elif diff <= 90: b_counts["61–90 Days"] += 1
@@ -216,7 +218,7 @@ async def get_report(
         cases = (await db.execute(cases_q)).scalars().all()
         rec_cnt = len(cases)
         disp_cnt = sum(1 for c in cases if c.status == "Disposed")
-        overdue_cnt = sum(1 for c in cases if c.expected_disposal_date and c.expected_disposal_date < now and c.status != "Disposed")
+        overdue_cnt = sum(1 for c in cases if c.expected_disposal_date and ensure_utc(c.expected_disposal_date) < now and c.status != "Disposed")
         rate = f"{(disp_cnt / rec_cnt * 100):.1f}%" if rec_cnt > 0 else "100%"
         row = ["Overall Cumulative Track", rec_cnt, disp_cnt, rate, overdue_cnt]
         rows.append(row)

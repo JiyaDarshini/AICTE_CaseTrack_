@@ -20,6 +20,9 @@ import random
 router = APIRouter(prefix="/cases", tags=["Cases"])
 
 
+from app.cache import ensure_utc, dashboard_cache
+
+
 @router.get("", response_model=List[CaseResponse])
 async def list_cases(
     institution_name: Optional[str] = Query(None),
@@ -42,6 +45,11 @@ async def list_cases(
         .outerjoin(BureauCell, Case.current_bureau_id == BureauCell.id)
         .outerjoin(User, Case.assigned_officer_id == User.id)
         .where(Case.is_deleted == False)
+        .options(
+            selectinload(Case.institution),
+            selectinload(Case.current_bureau),
+            selectinload(Case.assigned_officer)
+        )
     )
 
     # RBAC Scoping:
@@ -81,28 +89,36 @@ async def list_cases(
     cases = res.scalars().all()
 
     now = datetime.now(timezone.utc)
+    case_ids = [c.id for c in cases]
+
+    # Batch fetch overlap counts for all retrieved cases in 1 single query
+    overlap_counts = {}
+    if case_ids:
+        ov_res = await db.execute(
+            select(OverlapMember.case_id, func.count(OverlapMember.id))
+            .join(OverlapGroup, OverlapMember.group_id == OverlapGroup.id)
+            .where(OverlapMember.case_id.in_(case_ids), OverlapGroup.status == "Open")
+            .group_by(OverlapMember.case_id)
+        )
+        overlap_counts = dict(ov_res.all())
+
     output = []
     for c in cases:
-        inst = await db.get(Institution, c.institution_id)
-        bureau = await db.get(BureauCell, c.current_bureau_id) if c.current_bureau_id else None
-        officer = await db.get(User, c.assigned_officer_id) if c.assigned_officer_id else None
+        inst = c.institution
+        bureau = c.current_bureau
+        officer = c.assigned_officer
 
-        # Check overdue
+        # Check overdue safely with normalized timezone
         is_overdue = False
         days_rem = None
-        if c.expected_disposal_date and c.status not in ["Disposed"]:
-            delta = (c.expected_disposal_date - now).total_seconds() / 86400.0
+        exp_date = ensure_utc(c.expected_disposal_date)
+        if exp_date and c.status not in ["Disposed"]:
+            delta = (exp_date - now).total_seconds() / 86400.0
             days_rem = int(delta)
             if delta < 0:
                 is_overdue = True
 
-        # Check active overlaps
-        overlap_cnt_res = await db.execute(
-            select(func.count(OverlapMember.id))
-            .join(OverlapGroup, OverlapMember.group_id == OverlapGroup.id)
-            .where(OverlapMember.case_id == c.id, OverlapGroup.status == "Open")
-        )
-        overlap_cnt = overlap_cnt_res.scalar_one_or_none() or 0
+        overlap_cnt = overlap_counts.get(c.id, 0)
 
         output.append(CaseResponse(
             id=c.id,
@@ -115,7 +131,7 @@ async def list_cases(
             title=c.title,
             description=c.description,
             complainant_type=c.complainant_type,
-            received_date=c.received_date,
+            received_date=ensure_utc(c.received_date),
             status=c.status,
             current_bureau_id=c.current_bureau_id,
             current_bureau_code=bureau.code if bureau else None,
@@ -123,15 +139,15 @@ async def list_cases(
             assigned_officer_name=officer.name if officer else None,
             last_action=c.last_action,
             next_action=c.next_action,
-            last_action_date=c.last_action_date,
-            expected_disposal_date=c.expected_disposal_date,
+            last_action_date=ensure_utc(c.last_action_date),
+            expected_disposal_date=exp_date,
             sla_days=c.sla_days,
             source=c.source,
             is_overdue=is_overdue,
             days_remaining=days_rem,
             overlap_count=overlap_cnt,
-            created_at=c.created_at,
-            updated_at=c.updated_at
+            created_at=ensure_utc(c.created_at),
+            updated_at=ensure_utc(c.updated_at)
         ))
 
     return output
@@ -262,48 +278,58 @@ async def create_case(
 
 @router.get("/{id}", response_model=CaseDetailResponse)
 async def get_case_detail(id: UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    case = await db.get(Case, id)
-    if not case or case.is_deleted:
+    case_res = await db.execute(
+        select(Case)
+        .where(Case.id == id, Case.is_deleted == False)
+        .options(
+            selectinload(Case.institution),
+            selectinload(Case.current_bureau),
+            selectinload(Case.assigned_officer)
+        )
+    )
+    case = case_res.scalar_one_or_none()
+    if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
-    institution = await db.get(Institution, case.institution_id)
-    if current_user.role == "Regional Office" and current_user.region and institution.region != current_user.region:
+    institution = case.institution
+    if current_user.role == "Regional Office" and current_user.region and institution and institution.region != current_user.region:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied for cases outside your assigned region.")
 
-    bureau = await db.get(BureauCell, case.current_bureau_id) if case.current_bureau_id else None
+    bureau = case.current_bureau
     if current_user.role == "PGRC" and (not bureau or bureau.code != "PGRC"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: PGRC officers can only view cases within PGRC cell.")
     if current_user.role == "RB" and (not bureau or bureau.code != "RB"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: RB officers can only view cases within Regulation Bureau.")
-    officer = await db.get(User, case.assigned_officer_id) if case.assigned_officer_id else None
+    officer = case.assigned_officer
 
-    # Fetch chronological timeline actions
+    # Fetch chronological timeline actions with eager loaded relationships
     actions_res = await db.execute(
         select(CaseAction)
         .where(CaseAction.case_id == case.id)
+        .options(
+            selectinload(CaseAction.officer),
+            selectinload(CaseAction.bureau),
+            selectinload(CaseAction.from_bureau),
+            selectinload(CaseAction.to_bureau)
+        )
         .order_by(desc(CaseAction.created_at))
     )
     raw_actions = actions_res.scalars().all()
     action_items = []
     for a in raw_actions:
-        a_officer = await db.get(User, a.officer_id) if a.officer_id else None
-        a_bureau = await db.get(BureauCell, a.bureau_id) if a.bureau_id else None
-        from_b = await db.get(BureauCell, a.from_bureau_id) if a.from_bureau_id else None
-        to_b = await db.get(BureauCell, a.to_bureau_id) if a.to_bureau_id else None
-
         action_items.append(CaseActionResponse(
             id=a.id,
             case_id=a.case_id,
             bureau_id=a.bureau_id,
             officer_id=a.officer_id,
-            officer_name=a_officer.name if a_officer else None,
-            bureau_code=a_bureau.code if a_bureau else None,
-            from_bureau_code=from_b.code if from_b else None,
-            to_bureau_code=to_b.code if to_b else None,
+            officer_name=a.officer.name if a.officer else None,
+            bureau_code=a.bureau.code if a.bureau else None,
+            from_bureau_code=a.from_bureau.code if a.from_bureau else None,
+            to_bureau_code=a.to_bureau.code if a.to_bureau else None,
             action_type=a.action_type,
             remarks=a.remarks,
             document_url=a.document_url,
-            created_at=a.created_at
+            created_at=ensure_utc(a.created_at)
         ))
 
     # Overlapping cases
@@ -317,10 +343,11 @@ async def get_case_detail(id: UUID, current_user: User = Depends(get_current_use
         other_members_res = await db.execute(
             select(OverlapMember, Case)
             .join(Case, OverlapMember.case_id == Case.id)
+            .options(selectinload(Case.current_bureau))
             .where(OverlapMember.group_id == og.id, OverlapMember.case_id != case.id)
         )
         for other_om, other_case in other_members_res.all():
-            other_bureau = await db.get(BureauCell, other_case.current_bureau_id) if other_case.current_bureau_id else None
+            other_bureau = other_case.current_bureau
             overlapping_items.append({
                 "group_id": str(og.id),
                 "case_id": str(other_case.id),
@@ -337,8 +364,9 @@ async def get_case_detail(id: UUID, current_user: User = Depends(get_current_use
     now = datetime.now(timezone.utc)
     is_overdue = False
     days_rem = None
-    if case.expected_disposal_date and case.status != "Disposed":
-        delta = (case.expected_disposal_date - now).total_seconds() / 86400.0
+    exp_date = ensure_utc(case.expected_disposal_date)
+    if exp_date and case.status != "Disposed":
+        delta = (exp_date - now).total_seconds() / 86400.0
         days_rem = int(delta)
         if delta < 0:
             is_overdue = True

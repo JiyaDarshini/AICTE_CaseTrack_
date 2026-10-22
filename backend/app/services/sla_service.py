@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from app.models import Case, Notification, User, SLAConfig, CaseAction, AuditLog
 from app.config import settings
+from app.cache import ensure_utc
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +95,14 @@ async def check_sla_and_generate_alerts(db: AsyncSession) -> dict:
     senior_mgrs = senior_mgrs_res.scalars().all()
 
     for c in cases:
-        if not c.expected_disposal_date:
+        exp_date = ensure_utc(c.expected_disposal_date)
+        if not exp_date:
             continue
 
         category_config = sla_configs.get(c.category)
         warn_days = category_config.warn_before_days if category_config else 5
 
-        time_to_due = (c.expected_disposal_date - now).total_seconds() / 86400.0
+        time_to_due = (exp_date - now).total_seconds() / 86400.0
 
         # Case 1: Warning window (0 < days_remaining <= warn_days)
         if 0 < time_to_due <= warn_days:

@@ -4,11 +4,80 @@ from sqlalchemy import (
     Column, String, Text, Integer, Float, Boolean, DateTime,
     ForeignKey, Enum, Index, func
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from pgvector.sqlalchemy import Vector
+from sqlalchemy.types import TypeDecorator, CHAR, JSON
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB
 from app.database import Base
 import enum
+
+
+class GUID(TypeDecorator):
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        return value if dialect.name == "postgresql" else str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        if not isinstance(value, uuid.UUID):
+            try:
+                return uuid.UUID(str(value))
+            except Exception:
+                return value
+        return value
+
+
+class UUID(GUID):
+    cache_ok = True
+
+    def __init__(self, as_uuid=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.as_uuid = as_uuid
+
+
+class UniversalJSON(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_JSONB())
+        return dialect.type_descriptor(JSON())
+
+
+class JSONB(UniversalJSON):
+    pass
+
+
+class UniversalVector(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def __init__(self, dim=384, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            try:
+                from pgvector.sqlalchemy import Vector as PG_Vector
+                return dialect.type_descriptor(PG_Vector(self.dim))
+            except Exception:
+                pass
+        return dialect.type_descriptor(JSON())
+
+
+class Vector(UniversalVector):
+    pass
 
 
 class RoleEnum(str, enum.Enum):
@@ -242,6 +311,5 @@ class IngestionJob(Base):
 
 # Required Indexes
 Index("ix_cases_current_bureau_status", Case.current_bureau_id, Case.status)
-Index("ix_cases_received_date", Case.received_date)
 Index("ix_case_actions_case_created", CaseAction.case_id, CaseAction.created_at)
 Index("ix_notifications_user_read", Notification.user_id, Notification.is_read)

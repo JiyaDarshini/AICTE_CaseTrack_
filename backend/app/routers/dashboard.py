@@ -4,10 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, case, desc
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import Case, Institution, BureauCell, OverlapGroup, OverlapMember, User
 from app.schemas import DashboardSummaryResponse, BureauWorkloadItem, AgeingBucket, TopInstitutionItem
 from app.services.auth_service import get_current_user
+from app.cache import ensure_utc, dashboard_cache
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -15,17 +17,23 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 async def serialize_case_list(cases: List[Case], db: AsyncSession, now: datetime) -> List[Dict[str, Any]]:
     output = []
     for c in cases:
-        inst = await db.get(Institution, c.institution_id)
-        bureau = await db.get(BureauCell, c.current_bureau_id) if c.current_bureau_id else None
-        officer = await db.get(User, c.assigned_officer_id) if c.assigned_officer_id else None
+        inst = c.institution if hasattr(c, "institution") and c.institution else await db.get(Institution, c.institution_id)
+        bureau = c.current_bureau if hasattr(c, "current_bureau") and c.current_bureau else (await db.get(BureauCell, c.current_bureau_id) if c.current_bureau_id else None)
+        officer = c.assigned_officer if hasattr(c, "assigned_officer") and c.assigned_officer else (await db.get(User, c.assigned_officer_id) if c.assigned_officer_id else None)
 
         is_overdue = False
         days_rem = None
-        if c.expected_disposal_date and c.status != "Disposed":
-            delta = (c.expected_disposal_date - now).total_seconds() / 86400.0
+        exp_date = ensure_utc(c.expected_disposal_date)
+        if exp_date and c.status != "Disposed":
+            delta = (exp_date - now).total_seconds() / 86400.0
             days_rem = int(delta)
             if delta < 0:
                 is_overdue = True
+
+        rec_date = ensure_utc(c.received_date)
+        act_date = ensure_utc(c.last_action_date)
+        cre_date = ensure_utc(c.created_at)
+        upd_date = ensure_utc(c.updated_at)
 
         output.append({
             "id": str(c.id),
@@ -39,7 +47,7 @@ async def serialize_case_list(cases: List[Case], db: AsyncSession, now: datetime
             "description": c.description,
             "complainant_type": c.complainant_type,
             "complainant_name": c.complainant_name,
-            "received_date": c.received_date.isoformat() if c.received_date else None,
+            "received_date": rec_date.isoformat() if rec_date else None,
             "status": c.status,
             "current_bureau_id": str(c.current_bureau_id) if c.current_bureau_id else None,
             "current_bureau_code": bureau.code if bureau else None,
@@ -47,20 +55,25 @@ async def serialize_case_list(cases: List[Case], db: AsyncSession, now: datetime
             "assigned_officer_name": officer.name if officer else None,
             "last_action": c.last_action,
             "next_action": c.next_action,
-            "last_action_date": c.last_action_date.isoformat() if c.last_action_date else None,
-            "expected_disposal_date": c.expected_disposal_date.isoformat() if c.expected_disposal_date else None,
+            "last_action_date": act_date.isoformat() if act_date else None,
+            "expected_disposal_date": exp_date.isoformat() if exp_date else None,
             "sla_days": c.sla_days,
             "source": c.source,
             "is_overdue": is_overdue,
             "days_remaining": days_rem,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            "created_at": cre_date.isoformat() if cre_date else None,
+            "updated_at": upd_date.isoformat() if upd_date else None,
         })
     return output
 
 
 @router.get("/summary", response_model=DashboardSummaryResponse)
 async def get_dashboard_summary(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    cache_key = f"summary:{current_user.role}:{current_user.region}:{current_user.id}"
+    cached = dashboard_cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
     five_days_ahead = now + timedelta(days=5)
     first_of_month = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
@@ -155,12 +168,12 @@ async def get_dashboard_summary(current_user: User = Depends(get_current_user), 
     disp_res = await db.execute(disp_query)
     disp_rows = disp_res.all()
     if disp_rows:
-        total_days = sum((r[1] - r[0]).total_seconds() / 86400.0 for r in disp_rows)
+        total_days = sum((ensure_utc(r[1]) - ensure_utc(r[0])).total_seconds() / 86400.0 for r in disp_rows)
         avg_days_to_dispose = round(max(0.0, total_days / len(disp_rows)), 1)
     else:
         avg_days_to_dispose = 0.0
 
-    return DashboardSummaryResponse(
+    response = DashboardSummaryResponse(
         total_cases=total,
         pending_cases=pending,
         under_process_cases=under_process,
@@ -176,10 +189,17 @@ async def get_dashboard_summary(current_user: User = Depends(get_current_user), 
         avg_days_to_dispose=avg_days_to_dispose,
         escalated_by_me=escalated_me
     )
+    dashboard_cache.set(cache_key, response, ttl_seconds=15)
+    return response
 
 
 @router.get("/bureau-workload", response_model=List[BureauWorkloadItem])
 async def get_bureau_workload(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    cache_key = f"bureau_workload:{current_user.role}:{current_user.region}"
+    cached = dashboard_cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
     bureaus_res = await db.execute(select(BureauCell).order_by(BureauCell.code))
     bureaus = bureaus_res.scalars().all()
@@ -223,12 +243,18 @@ async def get_bureau_workload(current_user: User = Depends(get_current_user), db
             overdue=row.overdue or 0
         ))
 
+    dashboard_cache.set(cache_key, workload, ttl_seconds=15)
     return workload
 
 
 @router.get("/ageing", response_model=List[AgeingBucket])
 async def get_ageing_analysis(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Ageing buckets: 0-30, 31-60, 61-90, 90+ days for open cases scoped strictly by role"""
+    cache_key = f"ageing:{current_user.role}:{current_user.region}"
+    cached = dashboard_cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
     cases_query = (
         select(Case.received_date)
@@ -253,8 +279,9 @@ async def get_ageing_analysis(current_user: User = Depends(get_current_user), db
     b90_plus = 0
 
     for d in dates:
-        if d:
-            age = (now - d).days
+        d_utc = ensure_utc(d)
+        if d_utc:
+            age = (now - d_utc).days
             if age <= 30:
                 b0_30 += 1
             elif age <= 60:
@@ -264,17 +291,24 @@ async def get_ageing_analysis(current_user: User = Depends(get_current_user), db
             else:
                 b90_plus += 1
 
-    return [
+    buckets = [
         AgeingBucket(bucket="0–30 Days", count=b0_30),
         AgeingBucket(bucket="31–60 Days", count=b31_60),
         AgeingBucket(bucket="61–90 Days", count=b61_90),
         AgeingBucket(bucket="90+ Days", count=b90_plus)
     ]
+    dashboard_cache.set(cache_key, buckets, ttl_seconds=15)
+    return buckets
 
 
 @router.get("/trends")
 async def get_trends(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Monthly trends for received and disposed cases over the past 6 months scoped strictly by role"""
+    cache_key = f"trends:{current_user.role}:{current_user.region}"
+    cached = dashboard_cache.get(cache_key)
+    if cached:
+        return cached
+
     now = datetime.now(timezone.utc)
     six_months_ago = now - timedelta(days=180)
 
@@ -303,16 +337,20 @@ async def get_trends(current_user: User = Depends(get_current_user), db: AsyncSe
         months_dict[m_key] = {"month": m_key, "received": 0, "disposed": 0}
 
     for received_date, status, action_date in rows:
-        if received_date:
-            m_key = received_date.strftime("%b %Y")
+        r_utc = ensure_utc(received_date)
+        a_utc = ensure_utc(action_date)
+        if r_utc:
+            m_key = r_utc.strftime("%b %Y")
             if m_key in months_dict:
                 months_dict[m_key]["received"] += 1
-        if status == "Disposed" and action_date:
-            m_key = action_date.strftime("%b %Y")
+        if status == "Disposed" and a_utc:
+            m_key = a_utc.strftime("%b %Y")
             if m_key in months_dict:
                 months_dict[m_key]["disposed"] += 1
 
-    return list(months_dict.values())
+    trend_list = list(months_dict.values())
+    dashboard_cache.set(cache_key, trend_list, ttl_seconds=15)
+    return trend_list
 
 
 @router.get("/institution-status", response_model=List[TopInstitutionItem])
@@ -349,23 +387,25 @@ async def get_top_institutions(
     else:
         query = query.group_by(Institution.id, Institution.aicte_permanent_id, Institution.name, Institution.region)
 
-    if current_user.role not in ["PGRC", "RB"]:
-        query = query.group_by(Institution.id, Institution.aicte_permanent_id, Institution.name, Institution.region)
-
     query = query.order_by(desc("open_cases")).limit(limit)
     res = await db.execute(query)
     rows = res.all()
 
-    output = []
-    for r in rows:
+    inst_ids = [r.id for r in rows]
+    active_ov_map = {}
+    if inst_ids:
         ov_res = await db.execute(
-            select(func.count(OverlapGroup.id)).where(
-                OverlapGroup.institution_id == r.id,
+            select(OverlapGroup.institution_id, func.count(OverlapGroup.id))
+            .where(
+                OverlapGroup.institution_id.in_(inst_ids),
                 OverlapGroup.status == "Open"
             )
+            .group_by(OverlapGroup.institution_id)
         )
-        active_ov = ov_res.scalar_one_or_none() or 0
+        active_ov_map = dict(ov_res.all())
 
+    output = []
+    for r in rows:
         output.append(TopInstitutionItem(
             id=r.id,
             aicte_permanent_id=r.aicte_permanent_id,
@@ -373,7 +413,7 @@ async def get_top_institutions(
             region=r.region,
             open_cases=r.open_cases or 0,
             total_cases=r.total_cases or 0,
-            active_overlaps=active_ov
+            active_overlaps=active_ov_map.get(r.id, 0)
         ))
 
     return output
@@ -394,6 +434,11 @@ async def get_escalated_cases(
         .join(Institution, Case.institution_id == Institution.id)
         .outerjoin(BureauCell, Case.current_bureau_id == BureauCell.id)
         .where(Case.status == "Escalated", Case.is_deleted == False)
+        .options(
+            selectinload(Case.institution),
+            selectinload(Case.current_bureau),
+            selectinload(Case.assigned_officer)
+        )
     )
 
     if current_user.role == "PGRC":
@@ -422,6 +467,11 @@ async def get_due_soon_cases(
         .join(Institution, Case.institution_id == Institution.id)
         .outerjoin(BureauCell, Case.current_bureau_id == BureauCell.id)
         .where(Case.status != "Disposed", Case.is_deleted == False, Case.expected_disposal_date.isnot(None))
+        .options(
+            selectinload(Case.institution),
+            selectinload(Case.current_bureau),
+            selectinload(Case.assigned_officer)
+        )
     )
 
     if current_user.role == "PGRC":
@@ -449,6 +499,11 @@ async def get_my_cases(
     query = (
         select(Case)
         .where(Case.assigned_officer_id == current_user.id, Case.is_deleted == False, Case.status != "Disposed")
+        .options(
+            selectinload(Case.institution),
+            selectinload(Case.current_bureau),
+            selectinload(Case.assigned_officer)
+        )
         .order_by(desc(Case.received_date))
         .limit(limit)
     )
@@ -461,6 +516,11 @@ async def get_my_cases(
             select(Case)
             .join(BureauCell, Case.current_bureau_id == BureauCell.id)
             .where(BureauCell.code == current_user.role, Case.is_deleted == False, Case.status != "Disposed")
+            .options(
+                selectinload(Case.institution),
+                selectinload(Case.current_bureau),
+                selectinload(Case.assigned_officer)
+            )
             .order_by(desc(Case.received_date))
             .limit(limit)
         )
@@ -476,16 +536,18 @@ async def get_cross_bureau_overlaps(
     db: AsyncSession = Depends(get_db)
 ):
     """Overlaps involving both PGRC and RB cases"""
-    # Find all open overlap groups
     groups_res = await db.execute(
-        select(OverlapGroup).where(OverlapGroup.status == "Open").order_by(desc(OverlapGroup.score))
+        select(OverlapGroup)
+        .where(OverlapGroup.status == "Open")
+        .options(selectinload(OverlapGroup.institution))
+        .order_by(desc(OverlapGroup.score))
     )
     groups = groups_res.scalars().all()
 
     cross_overlaps = []
     for g in groups:
-        inst = await db.get(Institution, g.institution_id)
-        if current_user.role == "Regional Office" and current_user.region and inst.region != current_user.region:
+        inst = g.institution
+        if current_user.role == "Regional Office" and current_user.region and inst and inst.region != current_user.region:
             continue
 
         members_res = await db.execute(
@@ -497,7 +559,6 @@ async def get_cross_bureau_overlaps(
         members_data = members_res.all()
         bureaus_in_group = set(b.code for m, c, b in members_data if b)
 
-        # Has both PGRC and RB (or if PGRC/RB role, involves their own bureau and at least one other)
         has_cross = ("PGRC" in bureaus_in_group and "RB" in bureaus_in_group) or len(bureaus_in_group) > 1
 
         if has_cross:
@@ -525,7 +586,7 @@ async def get_cross_bureau_overlaps(
                 "status": g.status,
                 "explanation": g.explanation,
                 "rules_fired": g.rules_fired,
-                "created_at": g.created_at.isoformat() if g.created_at else None,
+                "created_at": ensure_utc(g.created_at).isoformat() if g.created_at else None,
                 "bureaus": list(bureaus_in_group),
                 "members": member_items
             })
@@ -604,6 +665,11 @@ async def get_cases_needing_action(
                 Case.status.in_(["Pending", "Under Process"]),
                 and_(Case.expected_disposal_date < now, Case.status != "Disposed")
             )
+        )
+        .options(
+            selectinload(Case.institution),
+            selectinload(Case.current_bureau),
+            selectinload(Case.assigned_officer)
         )
     )
 

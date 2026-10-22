@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from app.models import Case, OverlapGroup, OverlapMember, Institution, BureauCell, CaseAction, AuditLog, User
 from app.config import settings
+from app.cache import ensure_utc
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +105,13 @@ def compute_rule_score(target_case: Case, candidate: Case) -> Tuple[float, List[
 
     # 5. Received within 180 days
     if target_case.received_date and candidate.received_date:
-        diff_days = abs((target_case.received_date - candidate.received_date).days)
-        if diff_days <= 180:
-            score += 0.10
-            rules_fired.append(f"Received within 180 days ({diff_days} days apart)")
+        d1 = ensure_utc(target_case.received_date)
+        d2 = ensure_utc(candidate.received_date)
+        if d1 and d2:
+            diff_days = abs((d1 - d2).days)
+            if diff_days <= 180:
+                score += 0.10
+                rules_fired.append(f"Received within 180 days ({diff_days} days apart)")
 
     # 6. Same complainant type
     if target_case.complainant_type and candidate.complainant_type and target_case.complainant_type == candidate.complainant_type:

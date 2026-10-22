@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import Institution, Case, BureauCell, User, OverlapGroup
 from app.schemas import (
@@ -12,6 +13,7 @@ from app.schemas import (
     InstitutionImportResponse
 )
 from app.services.auth_service import get_current_user, require_roles
+from app.cache import ensure_utc
 
 router = APIRouter(prefix="/institutions", tags=["Institutions"])
 
@@ -56,6 +58,7 @@ async def get_institution(id: UUID, current_user: User = Depends(get_current_use
     # Fetch cases
     cases_res = await db.execute(
         select(Case)
+        .options(selectinload(Case.current_bureau))
         .where(Case.institution_id == id, Case.is_deleted == False)
         .order_by(desc(Case.received_date))
     )
@@ -68,7 +71,7 @@ async def get_institution(id: UUID, current_user: User = Depends(get_current_use
     bureaus_set = set()
     case_items = []
     for c in cases:
-        bureau = await db.get(BureauCell, c.current_bureau_id) if c.current_bureau_id else None
+        bureau = c.current_bureau
         b_code = bureau.code if bureau else "Unassigned"
         if bureau:
             bureaus_set.add(bureau.name)

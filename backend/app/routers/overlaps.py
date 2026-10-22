@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, desc
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import OverlapGroup, OverlapMember, Case, Institution, BureauCell, CaseAction, User
 from app.schemas import OverlapGroupResponse, OverlapMemberResponse, OverlapReviewRequest
 from app.services.auth_service import get_current_user, require_roles
 from app.services.audit_service import create_audit_log
+from app.cache import ensure_utc, dashboard_cache
 
 router = APIRouter(prefix="/overlaps", tags=["Overlap Detection"])
 
@@ -24,6 +26,10 @@ async def list_overlaps(
     query = (
         select(OverlapGroup)
         .join(Institution, OverlapGroup.institution_id == Institution.id)
+        .options(
+            selectinload(OverlapGroup.institution),
+            selectinload(OverlapGroup.members).selectinload(OverlapMember.case).selectinload(Case.current_bureau)
+        )
     )
 
     if current_user.role == "Regional Office" and current_user.region:
@@ -40,23 +46,19 @@ async def list_overlaps(
 
     output = []
     for g in groups:
-        inst = await db.get(Institution, g.institution_id)
-        members_res = await db.execute(
-            select(OverlapMember, Case)
-            .join(Case, OverlapMember.case_id == Case.id)
-            .where(OverlapMember.group_id == g.id)
-        )
+        inst = g.institution
         mem_items = []
-        for mem, c in members_res.all():
-            bureau = await db.get(BureauCell, c.current_bureau_id) if c.current_bureau_id else None
+        for mem in (g.members or []):
+            c = mem.case
+            bureau = c.current_bureau if c else None
             mem_items.append(OverlapMemberResponse(
                 id=mem.id,
-                case_id=c.id,
-                case_number=c.case_number,
-                case_title=c.title,
-                case_status=c.status,
+                case_id=c.id if c else mem.case_id,
+                case_number=c.case_number if c else "",
+                case_title=c.title if c else "",
+                case_status=c.status if c else "",
                 bureau_code=bureau.code if bureau else "Unknown",
-                category=c.category,
+                category=c.category if c else "",
                 role=mem.role,
                 similarity_score=mem.similarity_score
             ))
@@ -74,7 +76,7 @@ async def list_overlaps(
             explanation=g.explanation,
             rules_fired=g.rules_fired,
             dismiss_reason=g.dismiss_reason,
-            created_at=g.created_at,
+            created_at=ensure_utc(g.created_at),
             members=mem_items
         ))
 
@@ -83,30 +85,34 @@ async def list_overlaps(
 
 @router.get("/{id}", response_model=OverlapGroupResponse)
 async def get_overlap(id: UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    g = await db.get(OverlapGroup, id)
+    res = await db.execute(
+        select(OverlapGroup)
+        .where(OverlapGroup.id == id)
+        .options(
+            selectinload(OverlapGroup.institution),
+            selectinload(OverlapGroup.members).selectinload(OverlapMember.case).selectinload(Case.current_bureau)
+        )
+    )
+    g = res.scalar_one_or_none()
     if not g:
         raise HTTPException(status_code=404, detail="Overlap group not found")
 
-    inst = await db.get(Institution, g.institution_id)
-    if current_user.role == "Regional Office" and current_user.region and inst.region != current_user.region:
+    inst = g.institution
+    if current_user.role == "Regional Office" and current_user.region and inst and inst.region != current_user.region:
         raise HTTPException(status_code=403, detail="Access denied for institutions outside your assigned region.")
 
-    members_res = await db.execute(
-        select(OverlapMember, Case)
-        .join(Case, OverlapMember.case_id == Case.id)
-        .where(OverlapMember.group_id == g.id)
-    )
     mem_items = []
-    for mem, c in members_res.all():
-        bureau = await db.get(BureauCell, c.current_bureau_id) if c.current_bureau_id else None
+    for mem in (g.members or []):
+        c = mem.case
+        bureau = c.current_bureau if c else None
         mem_items.append(OverlapMemberResponse(
             id=mem.id,
-            case_id=c.id,
-            case_number=c.case_number,
-            case_title=c.title,
-            case_status=c.status,
+            case_id=c.id if c else mem.case_id,
+            case_number=c.case_number if c else "",
+            case_title=c.title if c else "",
+            case_status=c.status if c else "",
             bureau_code=bureau.code if bureau else "Unknown",
-            category=c.category,
+            category=c.category if c else "",
             role=mem.role,
             similarity_score=mem.similarity_score
         ))
@@ -124,9 +130,10 @@ async def get_overlap(id: UUID, current_user: User = Depends(get_current_user), 
         explanation=g.explanation,
         rules_fired=g.rules_fired,
         dismiss_reason=g.dismiss_reason,
-        created_at=g.created_at,
+        created_at=ensure_utc(g.created_at),
         members=mem_items
     )
+
 
 
 @router.post("/{id}/link")

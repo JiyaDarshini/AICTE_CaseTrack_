@@ -58,3 +58,8 @@ celerybeat.pid
 
 # Logs
 *.log
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3

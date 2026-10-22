@@ -61,6 +61,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled server error on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "Internal Server Error",
+            "message": str(exc)
+        }
+    )
+
+
 # Health Check Endpoints
 @app.get("/healthz", tags=["Health"])
 async def healthz():
@@ -99,8 +111,30 @@ async def on_startup():
     try:
         from sqlalchemy import text
         async with async_engine.begin() as conn:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            if async_engine.dialect.name == "postgresql":
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database schema initialized successfully.")
+
+        try:
+            from app.database import SyncSessionLocal
+            from app.models import User
+            from scripts.seed import seed
+            import asyncio
+
+            def check_and_seed():
+                session = SyncSessionLocal()
+                try:
+                    has_users = session.query(User).first()
+                    if not has_users:
+                        logger.info("Empty database detected. Auto-seeding initial demo data...")
+                        seed()
+                finally:
+                    session.close()
+
+            await asyncio.to_thread(check_and_seed)
+        except Exception as seed_err:
+            logger.warning(f"Auto-seed check: {seed_err}")
+
     except Exception as e:
         logger.error(f"Error initializing schema: {e}")

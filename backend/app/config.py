@@ -10,8 +10,8 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    DATABASE_URL: str = "postgresql+asyncpg://neondb_owner:npg_kwmntUE79PgR@ep-sparkling-credit-b4j6xix6-pooler.c-6.us-east-2.aws.neon.tech/neondb?ssl=require"
-    SYNC_DATABASE_URL: str = "postgresql://neondb_owner:npg_kwmntUE79PgR@ep-sparkling-credit-b4j6xix6-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
+    DATABASE_URL: str = "sqlite+aiosqlite:///casetrack.db"
+    SYNC_DATABASE_URL: str = "sqlite:///casetrack.db"
     REDIS_URL: str = "redis://localhost:6379/0"
     
     JWT_SECRET: str = "aicte_casetrack_super_secret_jwt_key_2026_sih_secure_token_key_change_in_prod"

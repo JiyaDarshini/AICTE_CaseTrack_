@@ -9,14 +9,39 @@ logger = logging.getLogger(__name__)
 # Base Model
 Base = declarative_base()
 
-# Async Engine (for FastAPI routes)
-async_engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=5
-)
+is_sqlite = "sqlite" in settings.DATABASE_URL
+
+if is_sqlite:
+    async_engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=False,
+    )
+    sync_engine = create_engine(
+        settings.SYNC_DATABASE_URL,
+        echo=False,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    async_engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=5,
+        connect_args={
+            "timeout": 10
+        }
+    )
+    sync_engine = create_engine(
+        settings.SYNC_DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=5,
+        connect_args={
+            "connect_timeout": 10
+        }
+    )
 
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
@@ -26,17 +51,6 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False
 )
 
-# Sync Engine (for Alembic, Celery, Seed script)
-sync_engine = create_engine(
-    settings.SYNC_DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=5,
-    connect_args={
-        "connect_timeout": 10
-    }
-)
 
 SyncSessionLocal = sessionmaker(
     bind=sync_engine,
